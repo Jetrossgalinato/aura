@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localfont from "next/font/local";
 import "./globals.css";
 import InnerLayout from "@/layouts/innerlayout";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const myFont = localfont({
   src: "../public/fonts/PlusJakartaSans-Regular.ttf",
@@ -18,9 +19,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={myFont.className}>
+    <html lang="en" className={myFont.className} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
-        <InnerLayout>{children}</InnerLayout>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <InnerLayout>{children}</InnerLayout>
+        </ThemeProvider>
       </body>
     </html>
   );
