@@ -3,13 +3,12 @@
 import { useState } from "react";
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Pagination,
   PaginationContent,
@@ -19,6 +18,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DataTableProps } from "@/types/import";
 
 const PAGE_SIZE = 12;
@@ -60,25 +67,37 @@ export default function DataTable({ file, dataset }: DataTableProps) {
 
   if (!file) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-        No dataset uploaded yet. Upload a CSV, XLS, or XLSX file to see the
-        table preview.
+      <section className="mx-auto mt-6 max-w-4xl">
+        <Card className="border-dashed">
+          <CardContent className="p-4 text-center text-sm text-muted-foreground">
+            No dataset uploaded yet. Upload a CSV, XLS, or XLSX file to see the
+            table preview.
+          </CardContent>
+        </Card>
       </section>
     );
   }
 
   if (!dataset) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl rounded-xl border border-border p-4 text-sm text-muted-foreground">
-        Table preview is currently available for CSV files.
+      <section className="mx-auto mt-6 max-w-4xl">
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            Table preview is currently available for CSV files.
+          </CardContent>
+        </Card>
       </section>
     );
   }
 
   if (dataset.headers.length === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl rounded-xl border border-border p-4 text-sm text-muted-foreground">
-        Uploaded CSV is empty.
+      <section className="mx-auto mt-6 max-w-4xl">
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            Uploaded CSV is empty.
+          </CardContent>
+        </Card>
       </section>
     );
   }
@@ -91,36 +110,42 @@ export default function DataTable({ file, dataset }: DataTableProps) {
 
   return (
     <section className="mx-auto mt-6 max-w-7xl space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Showing {startIndex + 1}-{startIndex + previewRows.length} of{" "}
-        {dataset.rows.length} row(s)
-      </p>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Dataset preview</CardTitle>
+          <CardDescription>
+            Showing {startIndex + 1}-{startIndex + previewRows.length} of{" "}
+            {dataset.rows.length} row(s)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-2 pt-0">
+          <div className="rounded-xl border border-border bg-background p-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {dataset.headers.map((header, index) => (
+                    <TableHead key={`${header}-${index}`}>
+                      {header || `Column ${index + 1}`}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
 
-      <div className="rounded-xl border border-border bg-background p-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {dataset.headers.map((header, index) => (
-                <TableHead key={`${header}-${index}`}>
-                  {header || `Column ${index + 1}`}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {previewRows.map((row, rowIndex) => (
-              <TableRow key={`row-${rowIndex}`}>
-                {dataset.headers.map((_, colIndex) => (
-                  <TableCell key={`cell-${rowIndex}-${colIndex}`}>
-                    {row[colIndex] ?? ""}
-                  </TableCell>
+              <TableBody>
+                {previewRows.map((row, rowIndex) => (
+                  <TableRow key={`row-${rowIndex}`}>
+                    {dataset.headers.map((_, colIndex) => (
+                      <TableCell key={`cell-${rowIndex}-${colIndex}`}>
+                        {row[colIndex] ?? ""}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {totalPages > 1 ? (
         <Pagination>
