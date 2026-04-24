@@ -73,6 +73,13 @@ export default function Import({
     handleFile(file);
   };
 
+  const clearSelectedFile = () => {
+    requestIdRef.current += 1;
+    setSelectedFile(null);
+    setDatasetInfo(null);
+    setError("");
+  };
+
   if (isLoading) {
     return (
       <section className="mx-auto mt-10 max-w-4xl space-y-3">
@@ -96,11 +103,35 @@ export default function Import({
 
   return (
     <section className="mx-auto mt-10 max-w-4xl space-y-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.xls,.xlsx"
+        onChange={handleInputChange}
+        className="hidden"
+      />
+
       {selectedFile && !error ? (
         <Card>
-          <CardContent className="px-4 py-3 text-center text-sm">
-            <span className="font-medium">Selected file:</span>{" "}
-            {selectedFile.name} ({formatFileSize(selectedFile.size)})
+          <CardContent className="space-y-3 px-4 py-3 text-sm">
+            <p className="text-center">
+              <span className="font-medium">Selected file:</span>{" "}
+              {selectedFile.name} ({formatFileSize(selectedFile.size)})
+            </p>
+
+            <div className="flex justify-center gap-2">
+              <Button type="button" onClick={() => inputRef.current?.click()}>
+                <Upload />
+                Change file
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearSelectedFile}
+              >
+                Clear
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -178,14 +209,6 @@ export default function Import({
                   Accepted formats: .csv, .xls, .xlsx
                 </p>
               </div>
-
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".csv,.xls,.xlsx"
-                onChange={handleInputChange}
-                className="hidden"
-              />
 
               <Button
                 type="button"
