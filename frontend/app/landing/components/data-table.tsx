@@ -243,7 +243,6 @@ export default function DataTable({
                       event.preventDefault();
                       setPage(item);
                     }}
-                    href="#"
                   >
                     {item}
                   </PaginationLink>
