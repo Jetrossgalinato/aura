@@ -22,7 +22,7 @@ export default function LandingPage() {
     <div className="flex-col justify-center items-center min-h-screen">
       <Header />
       <Import onFileSelect={handleFileSelect} />
-      <DataTable file={file} dataset={dataset} />
+      <DataTable key={file?.name ?? "empty"} file={file} dataset={dataset} />
     </div>
   );
 }
