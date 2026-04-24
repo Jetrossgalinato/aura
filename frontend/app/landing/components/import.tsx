@@ -52,7 +52,7 @@ export default function Import({ onFileSelect }: ImportProps) {
   };
 
   return (
-    <section className="mt-10 max-w-3xl space-y-3 mx-auto">
+    <section className="mt-10 max-w-4xl space-y-3 mx-auto">
       <div
         onDragOver={(event) => {
           event.preventDefault();
