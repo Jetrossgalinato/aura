@@ -4,12 +4,14 @@ import { useRef, useState } from "react";
 import { Upload, FileSpreadsheet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const ACCEPTED_EXTENSIONS = ["csv", "xls", "xlsx"];
 
 type ImportProps = {
   onFileSelect?: (file: File) => void;
+  isLoading?: boolean;
 };
 
 function isAcceptedFile(file: File) {
@@ -17,7 +19,10 @@ function isAcceptedFile(file: File) {
   return !!ext && ACCEPTED_EXTENSIONS.includes(ext);
 }
 
-export default function Import({ onFileSelect }: ImportProps) {
+export default function Import({
+  onFileSelect,
+  isLoading = false,
+}: ImportProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -50,6 +55,25 @@ export default function Import({ onFileSelect }: ImportProps) {
     if (!file) return;
     handleFile(file);
   };
+
+  if (isLoading) {
+    return (
+      <section className="mx-auto mt-10 max-w-4xl space-y-3">
+        <div className="rounded-xl border-2 border-dashed p-8">
+          <div className="flex flex-col items-center gap-3">
+            <Skeleton className="size-10 rounded-lg" />
+            <div className="flex flex-col items-center gap-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-72" />
+              <Skeleton className="h-4 w-52" />
+            </div>
+            <Skeleton className="mt-2 h-8 w-28 rounded-lg" />
+          </div>
+        </div>
+        <Skeleton className="h-10 w-full rounded-md" />
+      </section>
+    );
+  }
 
   return (
     <section className="mt-10 max-w-4xl space-y-3 mx-auto">
