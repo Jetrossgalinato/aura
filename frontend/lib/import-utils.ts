@@ -99,36 +99,107 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function parseCsvLine(line: string) {
-  const values: string[] = [];
+function parseCsvText(text: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let current = "";
   let inQuotes = false;
+  let fieldQuoted = false;
+  let quoteClosed = false;
+  let rowHasDelimiter = false;
+  let rowHasQuotedField = false;
 
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
+  const pushField = () => {
+    row.push(fieldQuoted ? current : current.trim());
+    current = "";
+    fieldQuoted = false;
+    quoteClosed = false;
+  };
+
+  const pushRow = () => {
+    if (
+      row.length === 1 &&
+      row[0] === "" &&
+      !rowHasDelimiter &&
+      !rowHasQuotedField
+    ) {
+      row = [];
+      return;
+    }
+
+    rows.push(row);
+    row = [];
+    rowHasDelimiter = false;
+    rowHasQuotedField = false;
+  };
+
+  for (let i = 0; i <= text.length; i += 1) {
+    const char = i === text.length ? "\n" : text[i];
+
+    if (char === "\r") {
+      continue;
+    }
 
     if (char === '"') {
-      const next = line[i + 1];
+      const next = text[i + 1];
       if (inQuotes && next === '"') {
         current += '"';
         i += 1;
       } else {
+        if (!inQuotes && current.trim().length === 0) {
+          current = "";
+          fieldQuoted = true;
+          rowHasQuotedField = true;
+        }
+
         inQuotes = !inQuotes;
+        quoteClosed = !inQuotes;
       }
       continue;
     }
 
+    if (quoteClosed) {
+      if (char === " " || char === "\t") {
+        continue;
+      }
+
+      if (char === ",") {
+        pushField();
+        rowHasDelimiter = true;
+        continue;
+      }
+
+      if (char === "\n") {
+        pushField();
+        pushRow();
+        continue;
+      }
+
+      current += char;
+      quoteClosed = false;
+      continue;
+    }
+
     if (char === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
+      pushField();
+      rowHasDelimiter = true;
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      pushField();
+      pushRow();
       continue;
     }
 
     current += char;
   }
 
-  values.push(current.trim());
-  return values;
+  return rows;
+}
+
+function getCsvSummary(file: File) {
+  return file.text().then((text) => parseCsvText(text));
 }
 
 export async function buildDatasetInfo(file: File): Promise<DatasetInfo> {
@@ -147,24 +218,21 @@ export async function buildDatasetInfo(file: File): Promise<DatasetInfo> {
   }
 
   try {
-    const text = await file.text();
-    const lines = text
-      .replace(/\r\n/g, "\n")
-      .replace(/\r/g, "\n")
-      .split("\n")
-      .filter((line) => line.trim().length > 0);
+    const rows = await getCsvSummary(file);
 
-    if (lines.length === 0) {
+    if (rows.length === 0) {
       return { ...baseInfo, rowCount: 0, columnCount: 0 };
     }
 
-    const headerColumns = parseCsvLine(lines[0]).length;
-    const sampleDataColumns = lines[1] ? parseCsvLine(lines[1]).length : 0;
+    const columnCount = rows.reduce(
+      (maxColumns, currentRow) => Math.max(maxColumns, currentRow.length),
+      0,
+    );
 
     return {
       ...baseInfo,
-      rowCount: Math.max(lines.length - 1, 0),
-      columnCount: Math.max(headerColumns, sampleDataColumns),
+      rowCount: Math.max(rows.length - 1, 0),
+      columnCount,
     };
   } catch {
     return baseInfo;
@@ -181,24 +249,19 @@ export async function parseDatasetForTable(
   }
 
   try {
-    const text = await file.text();
-    const lines = text
-      .replace(/\r\n/g, "\n")
-      .replace(/\r/g, "\n")
-      .split("\n")
-      .filter((line) => line.trim().length > 0);
+    const rows = await getCsvSummary(file);
 
-    if (lines.length === 0) {
+    if (rows.length === 0) {
       return { format, headers: [], rows: [] };
     }
 
-    const headers = parseCsvLine(lines[0]);
-    const rows = lines.slice(1).map((line) => parseCsvLine(line));
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
 
     return {
       format,
       headers,
-      rows,
+      rows: dataRows,
     };
   } catch {
     return null;
