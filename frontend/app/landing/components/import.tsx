@@ -25,24 +25,34 @@ export default function Import({
   isLoading = false,
 }: ImportProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestIdRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [datasetInfo, setDatasetInfo] = useState<DatasetInfo | null>(null);
   const [error, setError] = useState<string>("");
 
   const handleFile = async (file: File) => {
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
+
     if (!isAcceptedFile(file)) {
-      setSelectedFile(null);
-      setDatasetInfo(null);
-      setError("Unsupported file type. Please upload CSV, XLS, or XLSX.");
+      if (requestId === requestIdRef.current) {
+        setSelectedFile(null);
+        setDatasetInfo(null);
+        setError("Unsupported file type. Please upload CSV, XLS, or XLSX.");
+      }
+      return;
+    }
+
+    const info = await buildDatasetInfo(file);
+
+    if (requestId !== requestIdRef.current) {
       return;
     }
 
     setError("");
     setSelectedFile(file);
     onFileSelect?.(file);
-
-    const info = await buildDatasetInfo(file);
     setDatasetInfo(info);
   };
 
