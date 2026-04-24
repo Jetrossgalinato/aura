@@ -35,7 +35,9 @@ export default function Import({
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
 
-    if (!isAcceptedFile(file)) {
+    const accepted = await isAcceptedFile(file);
+
+    if (!accepted) {
       if (requestId === requestIdRef.current) {
         setSelectedFile(null);
         setDatasetInfo(null);
