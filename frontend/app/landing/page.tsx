@@ -31,7 +31,7 @@ export default function LandingPage() {
       <Header />
       <Import onFileSelect={handleFileSelect} />
       <DataTable
-        key={file?.name ?? "empty"}
+        key={file ? `${file.name}-${file.lastModified}-${file.size}` : "empty"}
         file={file}
         dataset={dataset}
         isLoading={isTableLoading}
