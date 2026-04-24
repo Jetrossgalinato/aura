@@ -10,3 +10,14 @@ export type DatasetInfo = {
   rowCount: number | null;
   columnCount: number | null;
 };
+
+export type ParsedDataset = {
+  format: string;
+  headers: string[];
+  rows: string[][];
+};
+
+export type DataTableProps = {
+  file: File | null;
+  dataset: ParsedDataset | null;
+};

@@ -1,4 +1,4 @@
-import { DatasetInfo } from "@/types/import";
+import { DatasetInfo, ParsedDataset } from "@/types/import";
 
 export const ACCEPTED_EXTENSIONS = ["csv", "xls", "xlsx"];
 
@@ -82,5 +82,39 @@ export async function buildDatasetInfo(file: File): Promise<DatasetInfo> {
     };
   } catch {
     return baseInfo;
+  }
+}
+
+export async function parseDatasetForTable(
+  file: File,
+): Promise<ParsedDataset | null> {
+  const format = file.name.split(".").pop()?.toUpperCase() ?? "Unknown";
+
+  if (format !== "CSV") {
+    return null;
+  }
+
+  try {
+    const text = await file.text();
+    const lines = text
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .filter((line) => line.trim().length > 0);
+
+    if (lines.length === 0) {
+      return { format, headers: [], rows: [] };
+    }
+
+    const headers = parseCsvLine(lines[0]);
+    const rows = lines.slice(1).map((line) => parseCsvLine(line));
+
+    return {
+      format,
+      headers,
+      rows,
+    };
+  } catch {
+    return null;
   }
 }
