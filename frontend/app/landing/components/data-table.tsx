@@ -18,6 +18,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -62,8 +63,60 @@ function getPageItems(totalPages: number, currentPage: number) {
   ];
 }
 
-export default function DataTable({ file, dataset }: DataTableProps) {
+export default function DataTable({
+  file,
+  dataset,
+  isLoading = false,
+}: DataTableProps) {
   const [page, setPage] = useState(1);
+
+  if (isLoading) {
+    return (
+      <section className="mx-auto mt-6 max-w-7xl space-y-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              <Skeleton className="h-5 w-40" />
+            </CardTitle>
+            <CardDescription>
+              <Skeleton className="h-4 w-56" />
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-2 pt-0">
+            <div className="rounded-xl border border-border bg-background p-2">
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton
+                      key={`header-skeleton-${index}`}
+                      className="h-9 w-full"
+                    />
+                  ))}
+                </div>
+                {Array.from({ length: 5 }).map((_, rowIndex) => (
+                  <div
+                    key={`row-skeleton-${rowIndex}`}
+                    className="grid grid-cols-4 gap-2"
+                  >
+                    {Array.from({ length: 4 }).map((__, colIndex) => (
+                      <Skeleton
+                        key={`cell-skeleton-${rowIndex}-${colIndex}`}
+                        className="h-9 w-full"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-center">
+          <Skeleton className="h-10 w-72 rounded-full" />
+        </div>
+      </section>
+    );
+  }
 
   if (!file) {
     return (

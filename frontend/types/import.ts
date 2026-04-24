@@ -20,4 +20,5 @@ export type ParsedDataset = {
 export type DataTableProps = {
   file: File | null;
   dataset: ParsedDataset | null;
+  isLoading?: boolean;
 };
