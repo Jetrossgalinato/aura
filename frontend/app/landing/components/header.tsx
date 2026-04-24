@@ -2,7 +2,7 @@ import { TypographyH1, TypographyH4 } from "@/components/typography";
 
 export default function Header() {
   return (
-    <header className="flex-row justify-center items-center text-center gap-4 mt-18">
+    <header className="flex-row text-center gap-4 mt-18">
       <div className="mb-4">
         <TypographyH1>From Raw Data to Real Predictions</TypographyH1>
       </div>
