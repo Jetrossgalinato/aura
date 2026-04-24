@@ -58,6 +58,7 @@ export default function Import({
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
     handleFile(file);
   };
