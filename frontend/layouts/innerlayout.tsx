@@ -8,7 +8,7 @@ export default function InnerLayout({
   return (
     <section>
       <Navbar />
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 p-8 bg-bg-far">{children}</main>
     </section>
   );
 }
