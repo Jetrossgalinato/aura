@@ -155,6 +155,18 @@ export default function DataTable({
     );
   }
 
+  if (dataset.rows.length === 0) {
+    return (
+      <section className="mx-auto mt-6 max-w-4xl">
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            No data rows.
+          </CardContent>
+        </Card>
+      </section>
+    );
+  }
+
   const totalPages = Math.max(Math.ceil(dataset.rows.length / PAGE_SIZE), 1);
   const activePage = Math.min(page, totalPages);
   const startIndex = (activePage - 1) * PAGE_SIZE;
