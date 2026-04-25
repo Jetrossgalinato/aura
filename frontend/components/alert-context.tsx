@@ -231,7 +231,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     <AlertContext.Provider value={value}>
       {children}
 
-      <div className="pointer-events-none fixed right-4 top-18 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-2">
+      <div
+        role="region"
+        aria-label="Notifications"
+        aria-live="polite"
+        aria-relevant="additions"
+        className="pointer-events-none fixed right-4 top-18 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-2"
+      >
         {alerts.map((alert) => (
           <Alert
             key={alert.id}
