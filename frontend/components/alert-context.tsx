@@ -17,6 +17,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ type AlertItem = AlertInput & {
   variant: AlertVariant;
   isClosing?: boolean;
   isVisible?: boolean;
+  progress?: number;
 };
 
 type AlertContextValue = {
@@ -48,12 +50,19 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const autoDismissHandles = useRef<Map<string, number>>(new Map());
   const removalHandles = useRef<Map<string, number>>(new Map());
+  const progressHandles = useRef<Map<string, number>>(new Map());
 
   const removeAlert = useCallback((id: string) => {
     const autoDismissHandle = autoDismissHandles.current.get(id);
     if (autoDismissHandle !== undefined) {
       window.clearTimeout(autoDismissHandle);
       autoDismissHandles.current.delete(id);
+    }
+
+    const progressHandle = progressHandles.current.get(id);
+    if (progressHandle !== undefined) {
+      window.clearInterval(progressHandle);
+      progressHandles.current.delete(id);
     }
 
     const removalHandle = removalHandles.current.get(id);
@@ -109,6 +118,11 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     });
     autoDismissHandles.current.clear();
 
+    progressHandles.current.forEach((intervalHandle) => {
+      window.clearInterval(intervalHandle);
+    });
+    progressHandles.current.clear();
+
     removalHandles.current.forEach((timeoutHandle) => {
       window.clearTimeout(timeoutHandle);
     });
@@ -130,13 +144,44 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const showAlert = useCallback(
     ({ durationMs = 5000, variant = "default", ...alert }: AlertInput) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const shouldTrackProgress = durationMs > 0;
 
       setAlerts((previous) => [
         ...previous,
-        { id, variant, durationMs, ...alert, isVisible: false },
+        {
+          id,
+          variant,
+          durationMs,
+          ...alert,
+          isVisible: false,
+          progress: shouldTrackProgress ? 0 : undefined,
+        },
       ]);
 
       animateAlertIn(id);
+
+      if (shouldTrackProgress) {
+        const startTime = window.performance.now();
+        const intervalHandle = window.setInterval(() => {
+          const elapsed = window.performance.now() - startTime;
+          const nextProgress = Math.min((elapsed / durationMs) * 100, 100);
+
+          setAlerts((previous) =>
+            previous.map((currentAlert) =>
+              currentAlert.id === id
+                ? { ...currentAlert, progress: nextProgress }
+                : currentAlert,
+            ),
+          );
+
+          if (nextProgress >= 100) {
+            window.clearInterval(intervalHandle);
+            progressHandles.current.delete(id);
+          }
+        }, 50);
+
+        progressHandles.current.set(id, intervalHandle);
+      }
 
       if (durationMs > 0) {
         const timeoutHandle = window.setTimeout(() => {
@@ -152,6 +197,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const autoDismissTimeouts = autoDismissHandles.current;
+    const progressIntervals = progressHandles.current;
     const removalTimeouts = removalHandles.current;
 
     return () => {
@@ -159,6 +205,11 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         window.clearTimeout(timeoutHandle);
       });
       autoDismissTimeouts.clear();
+
+      progressIntervals.forEach((intervalHandle) => {
+        window.clearInterval(intervalHandle);
+      });
+      progressIntervals.clear();
 
       removalTimeouts.forEach((timeoutHandle) => {
         window.clearTimeout(timeoutHandle);
@@ -193,6 +244,11 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             <AlertTitle>{alert.title}</AlertTitle>
             {alert.description ? (
               <AlertDescription>{alert.description}</AlertDescription>
+            ) : null}
+            {alert.progress !== undefined ? (
+              <div className="absolute bottom-0 left-0 w-full overflow-hidden rounded-b-lg">
+                <Progress className="rounded-none h-1" value={alert.progress} />
+              </div>
             ) : null}
             <AlertAction>
               <Button
