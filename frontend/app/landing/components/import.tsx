@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 export default function Import({
   onFileSelect,
+  onClear,
   isLoading = false,
 }: ImportProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +43,7 @@ export default function Import({
         setSelectedFile(null);
         setDatasetInfo(null);
         setError("Unsupported file type. Please upload CSV, XLS, or XLSX.");
+        onClear?.();
       }
       return;
     }
@@ -80,6 +82,7 @@ export default function Import({
     setSelectedFile(null);
     setDatasetInfo(null);
     setError("");
+    onClear?.();
   };
 
   if (isLoading) {

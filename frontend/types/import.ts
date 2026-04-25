@@ -1,5 +1,6 @@
 export type ImportProps = {
   onFileSelect?: (file: File) => void;
+  onClear?: () => void;
   isLoading?: boolean;
 };
 

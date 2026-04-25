@@ -26,10 +26,16 @@ export default function LandingPage() {
     }
   };
 
+  const handleImportClear = () => {
+    setFile(null);
+    setDataset(null);
+    setIsTableLoading(false);
+  };
+
   return (
     <div className="flex-col justify-center items-center min-h-screen">
       <Header />
-      <Import onFileSelect={handleFileSelect} />
+      <Import onFileSelect={handleFileSelect} onClear={handleImportClear} />
       <DataTable
         key={file ? `${file.name}-${file.lastModified}-${file.size}` : "empty"}
         file={file}
