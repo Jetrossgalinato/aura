@@ -128,17 +128,21 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     });
     removalHandles.current.clear();
 
-    setAlerts((previous) => {
-      previous.forEach((alert) => {
-        const removalTimeout = window.setTimeout(() => {
+    // Pure state update: only mark alerts as closing
+    setAlerts((previous) =>
+      previous.map((alert) => ({ ...alert, isClosing: true })),
+    );
+
+    // Schedule removal side-effect after state is set
+    window.setTimeout(() => {
+      setAlerts((previous) => {
+        const closingAlerts = previous.filter((alert) => alert.isClosing);
+        closingAlerts.forEach((alert) => {
           removeAlert(alert.id);
-        }, 180);
-
-        removalHandles.current.set(alert.id, removalTimeout);
+        });
+        return previous;
       });
-
-      return previous.map((alert) => ({ ...alert, isClosing: true }));
-    });
+    }, 180);
   }, [removeAlert]);
 
   const showAlert = useCallback(
