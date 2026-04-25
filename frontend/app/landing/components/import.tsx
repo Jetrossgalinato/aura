@@ -17,13 +17,16 @@ import {
   formatFileSize,
   isAcceptedFile,
 } from "@/lib/import-utils";
+import { useAlert } from "@/components/alert-context";
 import { DatasetInfo, ImportProps } from "@/types/import";
 import { cn } from "@/lib/utils";
 
 export default function Import({
   onFileSelect,
+  onClear,
   isLoading = false,
 }: ImportProps) {
+  const { showAlert } = useAlert();
   const inputRef = useRef<HTMLInputElement>(null);
   const requestIdRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -42,6 +45,12 @@ export default function Import({
         setSelectedFile(null);
         setDatasetInfo(null);
         setError("Unsupported file type. Please upload CSV, XLS, or XLSX.");
+        showAlert({
+          title: "Upload failed",
+          description: "Unsupported file type. Please use CSV, XLS, or XLSX.",
+          variant: "destructive",
+        });
+        onClear?.();
       }
       return;
     }
@@ -56,6 +65,11 @@ export default function Import({
     setSelectedFile(file);
     onFileSelect?.(file);
     setDatasetInfo(info);
+    showAlert({
+      title: "File uploaded",
+      description: `${file.name} is ready for preview.`,
+      variant: "success",
+    });
   };
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,10 +90,22 @@ export default function Import({
   };
 
   const clearSelectedFile = () => {
+    const hadSelection = Boolean(selectedFile || datasetInfo || error);
+
     requestIdRef.current += 1;
     setSelectedFile(null);
     setDatasetInfo(null);
     setError("");
+
+    if (hadSelection) {
+      showAlert({
+        title: "Selection cleared",
+        description: "Uploaded file and dataset preview were removed.",
+        variant: "success",
+      });
+    }
+
+    onClear?.();
   };
 
   if (isLoading) {
