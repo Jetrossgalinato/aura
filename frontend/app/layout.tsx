@@ -3,10 +3,11 @@ import localfont from "next/font/local";
 import "./globals.css";
 import InnerLayout from "@/layouts/innerlayout";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AlertProvider } from "@/components/alert-context";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const myFont = localfont({
   src: "../public/fonts/PlusJakartaSans-Regular.ttf",
@@ -23,7 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn(myFont.className, "font-sans", geist.variable)} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={cn(myFont.className, "font-sans", geist.variable)}
+      suppressHydrationWarning
+    >
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
@@ -31,7 +36,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <InnerLayout>{children}</InnerLayout>
+          <AlertProvider>
+            <InnerLayout>{children}</InnerLayout>
+          </AlertProvider>
         </ThemeProvider>
       </body>
     </html>
