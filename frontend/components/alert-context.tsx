@@ -20,29 +20,13 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  generateAlertId,
+  calculateProgress,
+  ALERT_TIMINGS,
+} from "@/lib/alert-utils";
 
-type AlertVariant = "default" | "success" | "destructive";
-
-type AlertInput = {
-  title: string;
-  description?: string;
-  variant?: AlertVariant;
-  durationMs?: number;
-};
-
-type AlertItem = AlertInput & {
-  id: string;
-  variant: AlertVariant;
-  isClosing?: boolean;
-  isVisible?: boolean;
-  progress?: number;
-};
-
-type AlertContextValue = {
-  showAlert: (alert: AlertInput) => string;
-  dismissAlert: (id: string) => void;
-  clearAlerts: () => void;
-};
+import type { AlertContextValue, AlertInput, AlertItem } from "@/types/alert";
 
 const AlertContext = createContext<AlertContextValue | undefined>(undefined);
 
@@ -105,7 +89,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
       const removalTimeout = window.setTimeout(() => {
         removeAlert(id);
-      }, 180);
+      }, ALERT_TIMINGS.SLIDE_OUT_DURATION);
 
       removalHandles.current.set(id, removalTimeout);
     },
@@ -142,12 +126,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         });
         return previous;
       });
-    }, 180);
+    }, ALERT_TIMINGS.SLIDE_OUT_DURATION);
   }, [removeAlert]);
 
   const showAlert = useCallback(
-    ({ durationMs = 5000, variant = "default", ...alert }: AlertInput) => {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    ({
+      durationMs = ALERT_TIMINGS.AUTO_DISMISS_DURATION,
+      variant = "default",
+      ...alert
+    }: AlertInput) => {
+      const id = generateAlertId();
       const shouldTrackProgress = durationMs > 0;
 
       setAlerts((previous) => [
@@ -168,7 +156,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         const startTime = window.performance.now();
         const intervalHandle = window.setInterval(() => {
           const elapsed = window.performance.now() - startTime;
-          const nextProgress = Math.min((elapsed / durationMs) * 100, 100);
+          const nextProgress = calculateProgress(elapsed, durationMs);
 
           setAlerts((previous) =>
             previous.map((currentAlert) =>
@@ -182,7 +170,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             window.clearInterval(intervalHandle);
             progressHandles.current.delete(id);
           }
-        }, 50);
+        }, ALERT_TIMINGS.PROGRESS_UPDATE_INTERVAL);
 
         progressHandles.current.set(id, intervalHandle);
       }
