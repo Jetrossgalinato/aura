@@ -1,10 +1,11 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-lg border px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  "group/alert relative flex w-full items-start gap-3 rounded-lg border px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18",
   {
     variants: {
       variant: {
@@ -24,15 +25,31 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  children,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
+  const icon =
+    variant === "success" ? (
+      <CheckCircle2 aria-hidden="true" />
+    ) : variant === "destructive" ? (
+      <AlertCircle aria-hidden="true" />
+    ) : (
+      <Info aria-hidden="true" />
+    );
+
   return (
     <div
       data-slot="alert"
       role="alert"
       className={cn(alertVariants({ variant }), className)}
       {...props}
-    />
+    >
+      <div className="mt-0.5 shrink-0 text-current [&_svg]:size-4 [&_svg]:text-current">
+        {icon}
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-0.5">{children}</div>
+    </div>
   );
 }
 
@@ -41,7 +58,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="alert-title"
       className={cn(
-        "font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
+        "font-medium [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
         className,
       )}
       {...props}

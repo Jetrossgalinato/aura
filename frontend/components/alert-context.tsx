@@ -18,6 +18,7 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type AlertVariant = "default" | "success" | "destructive";
 
@@ -31,6 +32,8 @@ type AlertInput = {
 type AlertItem = AlertInput & {
   id: string;
   variant: AlertVariant;
+  isClosing?: boolean;
+  isVisible?: boolean;
 };
 
 type AlertContextValue = {
@@ -43,25 +46,86 @@ const AlertContext = createContext<AlertContextValue | undefined>(undefined);
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const timeoutHandles = useRef<Map<string, number>>(new Map());
+  const autoDismissHandles = useRef<Map<string, number>>(new Map());
+  const removalHandles = useRef<Map<string, number>>(new Map());
 
-  const dismissAlert = useCallback((id: string) => {
-    const timeoutHandle = timeoutHandles.current.get(id);
-    if (timeoutHandle !== undefined) {
-      window.clearTimeout(timeoutHandle);
-      timeoutHandles.current.delete(id);
+  const removeAlert = useCallback((id: string) => {
+    const autoDismissHandle = autoDismissHandles.current.get(id);
+    if (autoDismissHandle !== undefined) {
+      window.clearTimeout(autoDismissHandle);
+      autoDismissHandles.current.delete(id);
+    }
+
+    const removalHandle = removalHandles.current.get(id);
+    if (removalHandle !== undefined) {
+      window.clearTimeout(removalHandle);
+      removalHandles.current.delete(id);
     }
 
     setAlerts((previous) => previous.filter((alert) => alert.id !== id));
   }, []);
 
+  const animateAlertIn = useCallback((id: string) => {
+    window.requestAnimationFrame(() => {
+      setAlerts((previous) =>
+        previous.map((alert) =>
+          alert.id === id ? { ...alert, isVisible: true } : alert,
+        ),
+      );
+    });
+  }, []);
+
+  const dismissAlert = useCallback(
+    (id: string) => {
+      const removalHandle = removalHandles.current.get(id);
+      if (removalHandle !== undefined) {
+        return;
+      }
+
+      const autoDismissHandle = autoDismissHandles.current.get(id);
+      if (autoDismissHandle !== undefined) {
+        window.clearTimeout(autoDismissHandle);
+        autoDismissHandles.current.delete(id);
+      }
+
+      setAlerts((previous) =>
+        previous.map((alert) =>
+          alert.id === id ? { ...alert, isClosing: true } : alert,
+        ),
+      );
+
+      const removalTimeout = window.setTimeout(() => {
+        removeAlert(id);
+      }, 180);
+
+      removalHandles.current.set(id, removalTimeout);
+    },
+    [removeAlert],
+  );
+
   const clearAlerts = useCallback(() => {
-    timeoutHandles.current.forEach((timeoutHandle) => {
+    autoDismissHandles.current.forEach((timeoutHandle) => {
       window.clearTimeout(timeoutHandle);
     });
-    timeoutHandles.current.clear();
-    setAlerts([]);
-  }, []);
+    autoDismissHandles.current.clear();
+
+    removalHandles.current.forEach((timeoutHandle) => {
+      window.clearTimeout(timeoutHandle);
+    });
+    removalHandles.current.clear();
+
+    setAlerts((previous) => {
+      previous.forEach((alert) => {
+        const removalTimeout = window.setTimeout(() => {
+          removeAlert(alert.id);
+        }, 180);
+
+        removalHandles.current.set(alert.id, removalTimeout);
+      });
+
+      return previous.map((alert) => ({ ...alert, isClosing: true }));
+    });
+  }, [removeAlert]);
 
   const showAlert = useCallback(
     ({ durationMs = 5000, variant = "default", ...alert }: AlertInput) => {
@@ -69,29 +133,37 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
       setAlerts((previous) => [
         ...previous,
-        { id, variant, durationMs, ...alert },
+        { id, variant, durationMs, ...alert, isVisible: false },
       ]);
+
+      animateAlertIn(id);
 
       if (durationMs > 0) {
         const timeoutHandle = window.setTimeout(() => {
           dismissAlert(id);
         }, durationMs);
-        timeoutHandles.current.set(id, timeoutHandle);
+        autoDismissHandles.current.set(id, timeoutHandle);
       }
 
       return id;
     },
-    [dismissAlert],
+    [animateAlertIn, dismissAlert],
   );
 
   useEffect(() => {
-    const timeouts = timeoutHandles.current;
+    const autoDismissTimeouts = autoDismissHandles.current;
+    const removalTimeouts = removalHandles.current;
 
     return () => {
-      timeouts.forEach((timeoutHandle) => {
+      autoDismissTimeouts.forEach((timeoutHandle) => {
         window.clearTimeout(timeoutHandle);
       });
-      timeouts.clear();
+      autoDismissTimeouts.clear();
+
+      removalTimeouts.forEach((timeoutHandle) => {
+        window.clearTimeout(timeoutHandle);
+      });
+      removalTimeouts.clear();
     };
   }, []);
 
@@ -109,7 +181,14 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
           <Alert
             key={alert.id}
             variant={alert.variant}
-            className="pointer-events-auto shadow-md"
+            className={cn(
+              "pointer-events-auto shadow-md transition-all duration-200 ease-out motion-reduce:transition-none",
+              alert.isClosing
+                ? "opacity-0 translate-x-4"
+                : alert.isVisible
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 translate-x-4",
+            )}
           >
             <AlertTitle>{alert.title}</AlertTitle>
             {alert.description ? (
