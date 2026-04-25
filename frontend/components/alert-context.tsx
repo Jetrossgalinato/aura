@@ -21,28 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type AlertVariant = "default" | "success" | "destructive";
-
-type AlertInput = {
-  title: string;
-  description?: string;
-  variant?: AlertVariant;
-  durationMs?: number;
-};
-
-type AlertItem = AlertInput & {
-  id: string;
-  variant: AlertVariant;
-  isClosing?: boolean;
-  isVisible?: boolean;
-  progress?: number;
-};
-
-type AlertContextValue = {
-  showAlert: (alert: AlertInput) => string;
-  dismissAlert: (id: string) => void;
-  clearAlerts: () => void;
-};
+import type { AlertContextValue, AlertInput, AlertItem } from "@/types/alert";
 
 const AlertContext = createContext<AlertContextValue | undefined>(undefined);
 
