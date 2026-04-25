@@ -233,12 +233,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             key={alert.id}
             variant={alert.variant}
             className={cn(
-              "pointer-events-auto shadow-md transition-all duration-200 ease-out motion-reduce:transition-none",
+              "pointer-events-auto shadow-md motion-reduce:animation-none",
               alert.isClosing
-                ? "opacity-0 translate-x-4"
+                ? "alert-slide-out"
                 : alert.isVisible
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-0 translate-x-4",
+                  ? "alert-slide-in"
+                  : "opacity-0 translate-x-4", // Initial hidden state before animation starts
             )}
           >
             <AlertTitle>{alert.title}</AlertTitle>
