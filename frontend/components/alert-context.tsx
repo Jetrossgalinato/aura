@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-type AlertVariant = "default" | "destructive";
+type AlertVariant = "default" | "success" | "destructive";
 
 type AlertInput = {
   title: string;
@@ -104,7 +104,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     <AlertContext.Provider value={value}>
       {children}
 
-      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-2">
+      <div className="pointer-events-none fixed right-4 top-18 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-2">
         {alerts.map((alert) => (
           <Alert
             key={alert.id}
