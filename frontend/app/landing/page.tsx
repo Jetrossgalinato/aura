@@ -5,6 +5,7 @@ import { useState } from "react";
 import Header from "./components/header";
 import Import from "./components/import";
 import DataTable from "./components/data-table";
+import CleanedVer from "./components/cleaned-ver";
 import { parseDatasetForTable } from "@/lib/import-utils";
 import { ParsedDataset } from "@/types/import";
 
@@ -42,6 +43,7 @@ export default function LandingPage() {
         dataset={dataset}
         isLoading={isTableLoading}
       />
+      <CleanedVer file={file} dataset={dataset} isLoading={isTableLoading} />
     </div>
   );
 }
