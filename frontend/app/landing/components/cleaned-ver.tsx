@@ -28,40 +28,7 @@ import {
 } from "@/components/ui/table";
 import { fetchCleanedPreview } from "@/services/data-cleaning";
 import { CleaningSummary, DataTableProps, ParsedDataset } from "@/types/import";
-
-const CLEANED_PREVIEW_ROWS = 12;
-
-function getPageItems(totalPages: number, currentPage: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  if (currentPage <= 4) {
-    return [1, 2, 3, 4, 5, null, totalPages];
-  }
-
-  if (currentPage >= totalPages - 3) {
-    return [
-      1,
-      null,
-      totalPages - 4,
-      totalPages - 3,
-      totalPages - 2,
-      totalPages - 1,
-      totalPages,
-    ];
-  }
-
-  return [
-    1,
-    null,
-    currentPage - 1,
-    currentPage,
-    currentPage + 1,
-    null,
-    totalPages,
-  ];
-}
+import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 
 export default function CleanedVer({
   file,
