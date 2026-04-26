@@ -6,6 +6,7 @@ from app.services.cleaning_service import clean_dataset
 
 app = FastAPI()
 
+# Allow local frontend during development.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -24,6 +25,7 @@ def hello_world():
 
 @app.post("/api/cleaning/preview", response_model=CleaningPreviewResponse)
 def cleaning_preview(payload: CleaningPreviewRequest):
+    # Stateless preview endpoint so frontend can request cleaned table data on demand.
     cleaned_rows, summary = clean_dataset(
         headers=payload.dataset.headers,
         rows=payload.dataset.rows,

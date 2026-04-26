@@ -5,6 +5,7 @@ NA_VALUE = "N/A"
 
 
 def _normalize_row_length(row: list[str], expected_length: int) -> list[str]:
+    # Force each row to match header length by trimming extras or padding missing cells.
     if expected_length <= 0:
         return []
 
@@ -21,6 +22,8 @@ def clean_dataset(
     rows: list[list[str]],
     max_rows: int | None = None,
 ) -> tuple[list[list[str]], CleaningSummary]:
+    # The cleaning pass normalizes whitespace, converts empty cells to N/A,
+    # drops fully empty rows, and tracks summary counters for the UI.
     expected_length = len(headers)
     cleaned_rows: list[list[str]] = []
 
@@ -51,6 +54,7 @@ def clean_dataset(
                 non_empty_cell_found = True
 
         if not non_empty_cell_found:
+            # Rows with no remaining values are excluded from the cleaned preview.
             removed_empty_rows += 1
             continue
 

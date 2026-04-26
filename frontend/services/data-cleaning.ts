@@ -19,6 +19,7 @@ type CleaningPreviewApiResponse = {
 export async function fetchCleanedPreview(
   dataset: ParsedDataset,
 ): Promise<CleaningPreviewResponse> {
+  // Send raw parsed rows so backend can apply canonical cleaning logic.
   const response = await fetch(`${BACKEND_URL}/api/cleaning/preview`, {
     method: "POST",
     headers: {
@@ -39,6 +40,7 @@ export async function fetchCleanedPreview(
 
   const payload = (await response.json()) as CleaningPreviewApiResponse;
 
+  // Convert snake_case API payload into frontend camelCase types.
   return {
     format: payload.format,
     headers: payload.headers,

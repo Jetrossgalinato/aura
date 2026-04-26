@@ -77,6 +77,7 @@ export default function CleanedVer({
   const [cleaningError, setCleaningError] = useState("");
 
   useEffect(() => {
+    // Re-run cleaning every time a new parsed dataset is selected.
     let isCancelled = false;
 
     if (
@@ -96,6 +97,7 @@ export default function CleanedVer({
         return;
       }
 
+      // Reset current preview before requesting fresh cleaned rows.
       setIsCleaningLoading(true);
       setCleaningError("");
       setCleanedDataset(null);
@@ -121,6 +123,7 @@ export default function CleanedVer({
           return;
         }
 
+        // Keep UI informative when backend service is not running or unreachable.
         setCleaningError(
           "Cleaning service is currently unavailable. Start the backend to load cleaned rows.",
         );
