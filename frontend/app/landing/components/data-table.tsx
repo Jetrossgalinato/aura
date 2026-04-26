@@ -31,6 +31,50 @@ import { DataTableProps } from "@/types/import";
 
 const PAGE_SIZE = 12;
 
+type DatasetCleaningSummary = {
+  removedEmptyRows: number;
+  normalizedEmptyCells: number;
+  trimmedCells: number;
+};
+
+function buildCleaningSummary(
+  headers: string[],
+  rows: string[][],
+): DatasetCleaningSummary {
+  let removedEmptyRows = 0;
+  let normalizedEmptyCells = 0;
+  let trimmedCells = 0;
+
+  for (const row of rows) {
+    let nonEmptyFound = false;
+
+    for (let columnIndex = 0; columnIndex < headers.length; columnIndex += 1) {
+      const raw = row[columnIndex] ?? "";
+      const trimmed = raw.trim();
+
+      if (raw !== trimmed) {
+        trimmedCells += 1;
+      }
+
+      if (trimmed === "") {
+        normalizedEmptyCells += 1;
+      } else {
+        nonEmptyFound = true;
+      }
+    }
+
+    if (!nonEmptyFound) {
+      removedEmptyRows += 1;
+    }
+  }
+
+  return {
+    removedEmptyRows,
+    normalizedEmptyCells,
+    trimmedCells,
+  };
+}
+
 function getPageItems(totalPages: number, currentPage: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -172,6 +216,7 @@ export default function DataTable({
   const startIndex = (activePage - 1) * PAGE_SIZE;
   const previewRows = dataset.rows.slice(startIndex, startIndex + PAGE_SIZE);
   const pageItems = getPageItems(totalPages, activePage);
+  const summary = buildCleaningSummary(dataset.headers, dataset.rows);
 
   return (
     <section className="mx-auto mt-6 max-w-7xl space-y-3">
@@ -209,6 +254,13 @@ export default function DataTable({
               </TableBody>
             </Table>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Trimmed cells: {summary.trimmedCells} | Empty normalized:{" "}
+            {summary.normalizedEmptyCells} | Empty rows removed:{" "}
+            {summary.removedEmptyRows}
+          </p>
+
           {totalPages > 1 ? (
             <div className="flex justify-end">
               <Pagination>

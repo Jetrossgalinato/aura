@@ -18,6 +18,20 @@ export type ParsedDataset = {
   rows: string[][];
 };
 
+export type CleaningSummary = {
+  processedRows: number;
+  removedEmptyRows: number;
+  normalizedEmptyCells: number;
+  trimmedCells: number;
+};
+
+export type CleaningPreviewResponse = {
+  format: string;
+  headers: string[];
+  rows: string[][];
+  summary: CleaningSummary;
+};
+
 export type DataTableProps = {
   file: File | null;
   dataset: ParsedDataset | null;

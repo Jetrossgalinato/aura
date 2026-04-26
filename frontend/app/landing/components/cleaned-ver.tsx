@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Card,
@@ -26,9 +26,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DataTableProps } from "@/types/import";
+import { fetchCleanedPreview } from "@/services/data-cleaning";
+import { CleaningSummary, DataTableProps, ParsedDataset } from "@/types/import";
 
-const CLEANED_PREVIEW_ROWS = 8;
+const CLEANED_PREVIEW_ROWS = 12;
 
 function getPageItems(totalPages: number, currentPage: number) {
   if (totalPages <= 7) {
@@ -62,17 +63,80 @@ function getPageItems(totalPages: number, currentPage: number) {
   ];
 }
 
-function cleanCellValue(value: string | undefined) {
-  const normalized = (value ?? "").trim();
-  return normalized === "" ? "N/A" : normalized;
-}
-
 export default function CleanedVer({
   file,
   dataset,
   isLoading = false,
 }: DataTableProps) {
   const [page, setPage] = useState(1);
+  const [cleanedDataset, setCleanedDataset] = useState<ParsedDataset | null>(
+    null,
+  );
+  const [summary, setSummary] = useState<CleaningSummary | null>(null);
+  const [isCleaningLoading, setIsCleaningLoading] = useState(false);
+  const [cleaningError, setCleaningError] = useState("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (
+      isLoading ||
+      !file ||
+      !dataset ||
+      dataset.headers.length === 0 ||
+      dataset.rows.length === 0
+    ) {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    Promise.resolve().then(() => {
+      if (isCancelled) {
+        return;
+      }
+
+      setIsCleaningLoading(true);
+      setCleaningError("");
+      setCleanedDataset(null);
+      setSummary(null);
+    });
+
+    fetchCleanedPreview(dataset)
+      .then((response) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setCleanedDataset({
+          format: response.format,
+          headers: response.headers,
+          rows: response.rows,
+        });
+        setSummary(response.summary);
+        setPage(1);
+      })
+      .catch(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setCleaningError(
+          "Cleaning service is currently unavailable. Start the backend to load cleaned rows.",
+        );
+        setCleanedDataset(null);
+        setSummary(null);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsCleaningLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dataset, file, isLoading]);
 
   if (isLoading) {
     return null;
@@ -87,13 +151,40 @@ export default function CleanedVer({
     return null;
   }
 
+  if (isCleaningLoading && !cleanedDataset) {
+    return (
+      <section className="mx-auto mt-6 max-w-7xl">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Cleaned data preview</CardTitle>
+            <CardDescription>
+              Cleaning rows through backend service.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </section>
+    );
+  }
+
+  if (!cleanedDataset) {
+    return (
+      <section className="mx-auto mt-6 max-w-7xl">
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {cleaningError || "No cleaned data is available yet."}
+          </CardContent>
+        </Card>
+      </section>
+    );
+  }
+
   const totalPages = Math.max(
-    Math.ceil(dataset.rows.length / CLEANED_PREVIEW_ROWS),
+    Math.ceil(cleanedDataset.rows.length / CLEANED_PREVIEW_ROWS),
     1,
   );
   const activePage = Math.min(page, totalPages);
   const startIndex = (activePage - 1) * CLEANED_PREVIEW_ROWS;
-  const previewRows = dataset.rows.slice(
+  const previewRows = cleanedDataset.rows.slice(
     startIndex,
     startIndex + CLEANED_PREVIEW_ROWS,
   );
@@ -106,8 +197,7 @@ export default function CleanedVer({
           <CardTitle className="text-base">Cleaned data preview</CardTitle>
           <CardDescription>
             Showing {startIndex + 1}-{startIndex + previewRows.length} of{" "}
-            {dataset.rows.length} cleaned row(s). Empty values are normalized to
-            N/A.
+            {cleanedDataset.rows.length} cleaned row(s).
           </CardDescription>
         </CardHeader>
 
@@ -116,7 +206,7 @@ export default function CleanedVer({
             <Table>
               <TableHeader>
                 <TableRow>
-                  {dataset.headers.map((header, index) => (
+                  {cleanedDataset.headers.map((header, index) => (
                     <TableHead key={`${header}-${index}`}>
                       {header || `Column ${index + 1}`}
                     </TableHead>
@@ -127,9 +217,9 @@ export default function CleanedVer({
               <TableBody>
                 {previewRows.map((row, rowIndex) => (
                   <TableRow key={`cleaned-row-${rowIndex}`}>
-                    {dataset.headers.map((_, colIndex) => (
+                    {cleanedDataset.headers.map((_, colIndex) => (
                       <TableCell key={`cleaned-cell-${rowIndex}-${colIndex}`}>
-                        {cleanCellValue(row[colIndex])}
+                        {row[colIndex] ?? "N/A"}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -137,6 +227,14 @@ export default function CleanedVer({
               </TableBody>
             </Table>
           </div>
+
+          {summary ? (
+            <p className="text-xs text-muted-foreground">
+              Trimmed cells: {summary.trimmedCells} | Empty normalized:{" "}
+              {summary.normalizedEmptyCells} | Empty rows removed:{" "}
+              {summary.removedEmptyRows}
+            </p>
+          ) : null}
 
           {totalPages > 1 ? (
             <div className="flex justify-end">
