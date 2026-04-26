@@ -183,7 +183,7 @@ export default function DataTable({
             {dataset.rows.length} row(s)
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-2 pt-0">
+        <CardContent className="space-y-3 p-2 pt-0">
           <div className="rounded-xl border border-border bg-background p-2">
             <Table>
               <TableHeader>
@@ -209,66 +209,67 @@ export default function DataTable({
               </TableBody>
             </Table>
           </div>
+          {totalPages > 1 ? (
+            <div className="flex justify-end">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (activePage > 1) {
+                          setPage(activePage - 1);
+                        }
+                      }}
+                      aria-disabled={activePage === 1}
+                      className={
+                        activePage === 1
+                          ? "pointer-events-none opacity-50"
+                          : undefined
+                      }
+                    />
+                  </PaginationItem>
+
+                  {pageItems.map((item, index) => (
+                    <PaginationItem key={`${item ?? "ellipsis"}-${index}`}>
+                      {item === null ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          isActive={item === activePage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setPage(item);
+                          }}
+                        >
+                          {item}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (activePage < totalPages) {
+                          setPage(activePage + 1);
+                        }
+                      }}
+                      aria-disabled={activePage === totalPages}
+                      className={
+                        activePage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : undefined
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
-
-      {totalPages > 1 ? (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (activePage > 1) {
-                    setPage(activePage - 1);
-                  }
-                }}
-                aria-disabled={activePage === 1}
-                className={
-                  activePage === 1
-                    ? "pointer-events-none opacity-50"
-                    : undefined
-                }
-              />
-            </PaginationItem>
-
-            {pageItems.map((item, index) => (
-              <PaginationItem key={`${item ?? "ellipsis"}-${index}`}>
-                {item === null ? (
-                  <PaginationEllipsis />
-                ) : (
-                  <PaginationLink
-                    isActive={item === activePage}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      setPage(item);
-                    }}
-                  >
-                    {item}
-                  </PaginationLink>
-                )}
-              </PaginationItem>
-            ))}
-
-            <PaginationItem>
-              <PaginationNext
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (activePage < totalPages) {
-                    setPage(activePage + 1);
-                  }
-                }}
-                aria-disabled={activePage === totalPages}
-                className={
-                  activePage === totalPages
-                    ? "pointer-events-none opacity-50"
-                    : undefined
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      ) : null}
     </section>
   );
 }
