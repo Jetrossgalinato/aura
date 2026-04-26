@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.schemas.cleaning import CleaningPreviewRequest, CleaningPreviewResponse
-from app.services.cleaning_service import clean_dataset
+from app.api.cleaning import router as cleaning_router
 
 app = FastAPI()
 
@@ -22,19 +21,4 @@ app.add_middleware(
 def hello_world():
     return {"message": "Hello, World!"}
 
-
-@app.post("/api/cleaning/preview", response_model=CleaningPreviewResponse)
-def cleaning_preview(payload: CleaningPreviewRequest):
-    # Stateless preview endpoint so frontend can request cleaned table data on demand.
-    cleaned_rows, summary = clean_dataset(
-        headers=payload.dataset.headers,
-        rows=payload.dataset.rows,
-        max_rows=payload.max_rows,
-    )
-
-    return CleaningPreviewResponse(
-        format=payload.dataset.format,
-        headers=payload.dataset.headers,
-        rows=cleaned_rows,
-        summary=summary,
-    )
+app.include_router(cleaning_router, prefix="/api")
