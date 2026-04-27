@@ -30,18 +30,7 @@ import {
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 import { fetchCleanedPreview } from "@/services/data-cleaning";
 import { DataTableProps, ParsedDataset } from "@/types/import";
-
-type ColumnEncoding = {
-  columnIndex: number;
-  header: string;
-  mapping: Record<string, number>;
-};
-
-type EncodedDataset = {
-  headers: string[];
-  rows: string[][];
-  encodedColumns: ColumnEncoding[];
-};
+import { ColumnEncoding, EncodedDataset } from "@/types/categorical";
 
 function isNumeric(value: string): boolean {
   const normalized = value.trim();
