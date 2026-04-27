@@ -1,9 +1,12 @@
 import math
 
-from app.services.cleaning_service import clean_dataset
+from app.services.cleaning_service import NA_VALUE, clean_dataset
 
 
 def _is_numeric(value: str) -> bool:
+    if value == NA_VALUE:
+        return False
+
     normalized = value.strip()
 
     if not normalized:
@@ -24,7 +27,13 @@ def encode_categorical_dataset(
     categorical_by_column: dict[int, dict[str, int]] = {}
 
     for col_index in range(column_count):
-        values = [row[col_index] for row in rows if col_index < len(row) and row[col_index] != ""]
+        values = [
+            row[col_index]
+            for row in rows
+            if col_index < len(row)
+            and row[col_index] != ""
+            and row[col_index] != NA_VALUE
+        ]
 
         if not values:
             continue
@@ -35,6 +44,9 @@ def encode_categorical_dataset(
         mapping: dict[str, int] = {}
 
         for value in values:
+            if value == NA_VALUE:
+                continue
+
             if value not in mapping:
                 mapping[value] = len(mapping)
 
@@ -58,7 +70,7 @@ def encode_categorical_dataset(
 
             value = next_row[col_index]
 
-            if value == "":
+            if value == "" or value == NA_VALUE:
                 continue
 
             encoded_value = mapping.get(value)
