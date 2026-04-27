@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TypographyLarge, TypographyMuted } from "@/components/typography";
 import {
   Pagination,
   PaginationContent,
@@ -42,6 +43,15 @@ export default function CleanedVer({
   const [summary, setSummary] = useState<CleaningSummary | null>(null);
   const [isCleaningLoading, setIsCleaningLoading] = useState(false);
   const [cleaningError, setCleaningError] = useState("");
+
+  const sectionHeader = (
+    <div className="space-y-1 pb-2">
+      <TypographyLarge>Cleaned Data Preview</TypographyLarge>
+      <TypographyMuted>
+        Inspect the normalized rows returned by the backend cleaning service.
+      </TypographyMuted>
+    </div>
+  );
 
   useEffect(() => {
     // Re-run cleaning every time a new parsed dataset is selected.
@@ -123,7 +133,8 @@ export default function CleanedVer({
 
   if (isCleaningLoading && !cleanedDataset) {
     return (
-      <section className="mx-auto mt-6 max-w-7xl">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Cleaned data preview</CardTitle>
@@ -138,7 +149,8 @@ export default function CleanedVer({
 
   if (!cleanedDataset) {
     return (
-      <section className="mx-auto mt-6 max-w-7xl">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             {cleaningError || "No cleaned data is available yet."}
@@ -161,7 +173,8 @@ export default function CleanedVer({
   const pageItems = getPageItems(totalPages, activePage);
 
   return (
-    <section className="mx-auto mt-6 max-w-7xl">
+    <section className="mx-auto mt-8 max-w-7xl space-y-4">
+      {sectionHeader}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Cleaned data preview</CardTitle>

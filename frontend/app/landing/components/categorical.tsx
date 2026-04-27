@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Card,
@@ -19,7 +19,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -28,148 +27,159 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
+import { fetchCategoricalPreview } from "@/services/categorical";
+import { EncodedDataset } from "@/types/categorical";
 import { DataTableProps } from "@/types/import";
-import { PAGE_SIZE, getPageItems } from "@/lib/table-pagination";
 
-export default function DataTable({
+export default function Categorical({
   file,
   dataset,
   isLoading = false,
 }: DataTableProps) {
   const [page, setPage] = useState(1);
+  const [encodedDataset, setEncodedDataset] = useState<EncodedDataset | null>(
+    null,
+  );
+  const [isEncodingLoading, setIsEncodingLoading] = useState(false);
+  const [encodingError, setEncodingError] = useState("");
 
   const sectionHeader = (
     <div className="space-y-1 pb-2">
-      <TypographyLarge>Dataset Preview</TypographyLarge>
+      <TypographyLarge>Categorical Encoding Preview</TypographyLarge>
       <TypographyMuted>
-        Review the uploaded dataset before preprocessing or model training.
+        See how text based values are mapped into numeric codes for modeling.
       </TypographyMuted>
     </div>
   );
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (
+      isLoading ||
+      !file ||
+      !dataset ||
+      dataset.headers.length === 0 ||
+      dataset.rows.length === 0
+    ) {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    Promise.resolve().then(() => {
+      if (isCancelled) {
+        return;
+      }
+
+      setIsEncodingLoading(true);
+      setEncodingError("");
+      setEncodedDataset(null);
+    });
+
+    fetchCategoricalPreview(dataset)
+      .then((response) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setEncodedDataset(response);
+        setPage(1);
+      })
+      .catch(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setEncodingError(
+          "Categorical preview is currently unavailable. Start the backend to load encoded rows.",
+        );
+        setEncodedDataset(null);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsEncodingLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dataset, file, isLoading]);
+
   if (isLoading) {
+    return null;
+  }
+
+  if (
+    !file ||
+    !dataset ||
+    dataset.headers.length === 0 ||
+    dataset.rows.length === 0
+  ) {
+    return null;
+  }
+
+  if (isEncodingLoading && !encodedDataset) {
     return (
       <section className="mx-auto mt-6 max-w-7xl space-y-4">
         {sectionHeader}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              <Skeleton className="h-5 w-40" />
-            </CardTitle>
+            <CardTitle className="text-base">Encoded data preview</CardTitle>
             <CardDescription>
-              <Skeleton className="h-4 w-56" />
+              Encoding categorical values through the backend service.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-2 pt-0">
-            <div className="rounded-xl border border-border bg-background p-2">
-              <div className="space-y-2">
-                <div className="grid grid-cols-4 gap-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton
-                      key={`header-skeleton-${index}`}
-                      className="h-9 w-full"
-                    />
-                  ))}
-                </div>
-                {Array.from({ length: 5 }).map((_, rowIndex) => (
-                  <div
-                    key={`row-skeleton-${rowIndex}`}
-                    className="grid grid-cols-4 gap-2"
-                  >
-                    {Array.from({ length: 4 }).map((__, colIndex) => (
-                      <Skeleton
-                        key={`cell-skeleton-${rowIndex}-${colIndex}`}
-                        className="h-9 w-full"
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-center">
-          <Skeleton className="h-10 w-72 rounded-full" />
-        </div>
-      </section>
-    );
-  }
-
-  if (!file) {
-    return (
-      <section className="mx-auto mt-6 max-w-4xl space-y-4">
-        <Card className="border-dashed">
-          <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            No dataset uploaded yet. Upload a CSV, XLS, or XLSX file to see the
-            table preview.
-          </CardContent>
         </Card>
       </section>
     );
   }
 
-  if (!dataset) {
+  if (!encodedDataset) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl space-y-4">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
         {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
-            Table preview is currently available for CSV files.
+            {encodingError || "No encoded data is available yet."}
           </CardContent>
         </Card>
       </section>
     );
   }
 
-  if (dataset.headers.length === 0) {
-    return (
-      <section className="mx-auto mt-6 max-w-4xl space-y-4">
-        {sectionHeader}
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            Uploaded CSV is empty.
-          </CardContent>
-        </Card>
-      </section>
-    );
-  }
-
-  if (dataset.rows.length === 0) {
-    return (
-      <section className="mx-auto mt-6 max-w-4xl space-y-4">
-        {sectionHeader}
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            No data rows.
-          </CardContent>
-        </Card>
-      </section>
-    );
-  }
-
-  const totalPages = Math.max(Math.ceil(dataset.rows.length / PAGE_SIZE), 1);
+  const totalPages = Math.max(
+    Math.ceil(encodedDataset.rows.length / CLEANED_PREVIEW_ROWS),
+    1,
+  );
   const activePage = Math.min(page, totalPages);
-  const startIndex = (activePage - 1) * PAGE_SIZE;
-  const previewRows = dataset.rows.slice(startIndex, startIndex + PAGE_SIZE);
+  const startIndex = (activePage - 1) * CLEANED_PREVIEW_ROWS;
+  const previewRows = encodedDataset.rows.slice(
+    startIndex,
+    startIndex + CLEANED_PREVIEW_ROWS,
+  );
   const pageItems = getPageItems(totalPages, activePage);
+
   return (
     <section className="mx-auto mt-8 max-w-7xl space-y-4">
       {sectionHeader}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Dataset preview</CardTitle>
+          <CardTitle className="text-base">Encoded data preview</CardTitle>
           <CardDescription>
             Showing {startIndex + 1}-{startIndex + previewRows.length} of{" "}
-            {dataset.rows.length} row(s)
+            {encodedDataset.rows.length} row(s).
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-3 p-2 pt-0">
           <div className="rounded-xl border border-border bg-background p-2">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {dataset.headers.map((header, index) => (
+                  {encodedDataset.headers.map((header, index) => (
                     <TableHead key={`${header}-${index}`}>
                       {header || `Column ${index + 1}`}
                     </TableHead>
@@ -179,10 +189,10 @@ export default function DataTable({
 
               <TableBody>
                 {previewRows.map((row, rowIndex) => (
-                  <TableRow key={`row-${rowIndex}`}>
-                    {dataset.headers.map((_, colIndex) => (
-                      <TableCell key={`cell-${rowIndex}-${colIndex}`}>
-                        {row[colIndex] ?? ""}
+                  <TableRow key={`encoded-row-${rowIndex}`}>
+                    {encodedDataset.headers.map((_, colIndex) => (
+                      <TableCell key={`encoded-cell-${rowIndex}-${colIndex}`}>
+                        {row[colIndex] ?? "N/A"}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -190,6 +200,34 @@ export default function DataTable({
               </TableBody>
             </Table>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Encoded columns: {encodedDataset.encodedColumns.length} of{" "}
+            {encodedDataset.headers.length}
+          </p>
+
+          {encodedDataset.encodedColumns.length > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {encodedDataset.encodedColumns.map((column) => (
+                <p
+                  key={`${column.header}-${column.columnIndex}`}
+                  className="rounded-md border border-border px-3 py-2 text-xs text-muted-foreground"
+                >
+                  <span className="font-medium text-foreground">
+                    {column.header}:
+                  </span>{" "}
+                  {Object.entries(column.mapping)
+                    .map(([value, code]) => `\"${value}\"=${code}`)
+                    .join(", ")}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No categorical columns were detected. Numeric columns stay
+              unchanged.
+            </p>
+          )}
 
           {totalPages > 1 ? (
             <div className="flex justify-end">
