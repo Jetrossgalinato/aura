@@ -6,6 +6,7 @@ import Header from "./components/header";
 import Import from "./components/import";
 import DataTable from "./components/data-table";
 import CleanedVer from "./components/cleaned-ver";
+import Categorical from "./components/categorical";
 import { parseDatasetForTable } from "@/lib/import-utils";
 import { ParsedDataset } from "@/types/import";
 
@@ -44,6 +45,7 @@ export default function LandingPage() {
         isLoading={isTableLoading}
       />
       <CleanedVer file={file} dataset={dataset} isLoading={isTableLoading} />
+      <Categorical file={file} dataset={dataset} isLoading={isTableLoading} />
     </div>
   );
 }
