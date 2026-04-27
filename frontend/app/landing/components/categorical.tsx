@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Card,
@@ -28,82 +28,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
-import { fetchCleanedPreview } from "@/services/data-cleaning";
-import { DataTableProps, ParsedDataset } from "@/types/import";
-import { ColumnEncoding, EncodedDataset } from "@/types/categorical";
-
-function isNumeric(value: string): boolean {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    return false;
-  }
-
-  return Number.isFinite(Number(normalized));
-}
-
-function encodeCategoricalDataset(dataset: ParsedDataset): EncodedDataset {
-  const columnCount = dataset.headers.length;
-  const encodedColumns: ColumnEncoding[] = [];
-  const categoricalByColumn = new Map<number, Map<string, number>>();
-
-  for (let colIndex = 0; colIndex < columnCount; colIndex += 1) {
-    const values = dataset.rows
-      .map((row) => row[colIndex] ?? "")
-      .filter((value) => value !== "");
-
-    if (values.length === 0) {
-      continue;
-    }
-
-    const hasNonNumericValue = values.some((value) => !isNumeric(value));
-
-    if (!hasNonNumericValue) {
-      continue;
-    }
-
-    const map = new Map<string, number>();
-
-    values.forEach((value) => {
-      if (!map.has(value)) {
-        map.set(value, map.size);
-      }
-    });
-
-    categoricalByColumn.set(colIndex, map);
-    encodedColumns.push({
-      columnIndex: colIndex,
-      header: dataset.headers[colIndex] || `Column ${colIndex + 1}`,
-      mapping: Object.fromEntries(map.entries()),
-    });
-  }
-
-  const encodedRows = dataset.rows.map((row) => {
-    const nextRow = [...row];
-
-    categoricalByColumn.forEach((mapping, colIndex) => {
-      const value = nextRow[colIndex] ?? "";
-
-      if (value === "") {
-        return;
-      }
-
-      const encodedValue = mapping.get(value);
-
-      if (encodedValue !== undefined) {
-        nextRow[colIndex] = String(encodedValue);
-      }
-    });
-
-    return nextRow;
-  });
-
-  return {
-    headers: dataset.headers,
-    rows: encodedRows,
-    encodedColumns,
-  };
-}
+import { fetchCategoricalPreview } from "@/services/categorical";
+import { EncodedDataset } from "@/types/categorical";
+import { DataTableProps } from "@/types/import";
 
 export default function Categorical({
   file,
@@ -111,7 +38,7 @@ export default function Categorical({
   isLoading = false,
 }: DataTableProps) {
   const [page, setPage] = useState(1);
-  const [cleanedDataset, setCleanedDataset] = useState<ParsedDataset | null>(
+  const [encodedDataset, setEncodedDataset] = useState<EncodedDataset | null>(
     null,
   );
   const [isEncodingLoading, setIsEncodingLoading] = useState(false);
@@ -148,20 +75,16 @@ export default function Categorical({
 
       setIsEncodingLoading(true);
       setEncodingError("");
-      setCleanedDataset(null);
+      setEncodedDataset(null);
     });
 
-    fetchCleanedPreview(dataset)
+    fetchCategoricalPreview(dataset)
       .then((response) => {
         if (isCancelled) {
           return;
         }
 
-        setCleanedDataset({
-          format: response.format,
-          headers: response.headers,
-          rows: response.rows,
-        });
+        setEncodedDataset(response);
         setPage(1);
       })
       .catch(() => {
@@ -170,9 +93,9 @@ export default function Categorical({
         }
 
         setEncodingError(
-          "Encoding preview is currently unavailable. Start the backend to load cleaned rows first.",
+          "Categorical preview is currently unavailable. Start the backend to load encoded rows.",
         );
-        setCleanedDataset(null);
+        setEncodedDataset(null);
       })
       .finally(() => {
         if (!isCancelled) {
@@ -184,14 +107,6 @@ export default function Categorical({
       isCancelled = true;
     };
   }, [dataset, file, isLoading]);
-
-  const encodedDataset = useMemo(() => {
-    if (!cleanedDataset) {
-      return null;
-    }
-
-    return encodeCategoricalDataset(cleanedDataset);
-  }, [cleanedDataset]);
 
   if (isLoading) {
     return null;
@@ -214,7 +129,7 @@ export default function Categorical({
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Encoded data preview</CardTitle>
             <CardDescription>
-              Encoding categorical values from cleaned rows.
+              Encoding categorical values through the backend service.
             </CardDescription>
           </CardHeader>
         </Card>

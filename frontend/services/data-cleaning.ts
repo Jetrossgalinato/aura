@@ -1,8 +1,14 @@
 import { CleaningPreviewResponse, ParsedDataset } from "@/types/import";
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ??
-  "http://localhost:8000";
+function getBackendUrl(): string {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "");
+
+  if (!backendUrl) {
+    throw new Error("NEXT_PUBLIC_BACKEND_URL is not set.");
+  }
+
+  return backendUrl;
+}
 
 type CleaningPreviewApiResponse = {
   format: string;
@@ -20,7 +26,7 @@ export async function fetchCleanedPreview(
   dataset: ParsedDataset,
 ): Promise<CleaningPreviewResponse> {
   // Send raw parsed rows so backend can apply canonical cleaning logic.
-  const response = await fetch(`${BACKEND_URL}/api/cleaning/preview`, {
+  const response = await fetch(`${getBackendUrl()}/api/cleaning/preview`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
