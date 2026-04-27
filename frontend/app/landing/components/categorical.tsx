@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TypographyLarge, TypographyMuted } from "@/components/typography";
 import {
   Pagination,
   PaginationContent,
@@ -127,6 +128,15 @@ export default function Categorical({
   const [isEncodingLoading, setIsEncodingLoading] = useState(false);
   const [encodingError, setEncodingError] = useState("");
 
+  const sectionHeader = (
+    <div className="space-y-1 pb-2">
+      <TypographyLarge>Categorical Encoding Preview</TypographyLarge>
+      <TypographyMuted>
+        See how text based values are mapped into numeric codes for modeling.
+      </TypographyMuted>
+    </div>
+  );
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -209,7 +219,8 @@ export default function Categorical({
 
   if (isEncodingLoading && !encodedDataset) {
     return (
-      <section className="mx-auto mt-6 max-w-7xl">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Encoded data preview</CardTitle>
@@ -224,7 +235,8 @@ export default function Categorical({
 
   if (!encodedDataset) {
     return (
-      <section className="mx-auto mt-6 max-w-7xl">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             {encodingError || "No encoded data is available yet."}
@@ -247,7 +259,8 @@ export default function Categorical({
   const pageItems = getPageItems(totalPages, activePage);
 
   return (
-    <section className="mx-auto mt-6 max-w-7xl">
+    <section className="mx-auto mt-8 max-w-7xl space-y-4">
+      {sectionHeader}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Encoded data preview</CardTitle>

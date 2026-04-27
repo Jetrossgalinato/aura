@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TypographyLarge, TypographyMuted } from "@/components/typography";
 import {
   Pagination,
   PaginationContent,
@@ -37,9 +38,19 @@ export default function DataTable({
 }: DataTableProps) {
   const [page, setPage] = useState(1);
 
+  const sectionHeader = (
+    <div className="space-y-1 pb-2">
+      <TypographyLarge>Dataset Preview</TypographyLarge>
+      <TypographyMuted>
+        Review the uploaded dataset before preprocessing or model training.
+      </TypographyMuted>
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <section className="mx-auto mt-6 max-w-7xl space-y-3">
+      <section className="mx-auto mt-6 max-w-7xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
@@ -87,7 +98,8 @@ export default function DataTable({
 
   if (!file) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl">
+      <section className="mx-auto mt-6 max-w-4xl space-y-4">
+        {sectionHeader}
         <Card className="border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             No dataset uploaded yet. Upload a CSV, XLS, or XLSX file to see the
@@ -100,7 +112,8 @@ export default function DataTable({
 
   if (!dataset) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl">
+      <section className="mx-auto mt-6 max-w-4xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             Table preview is currently available for CSV files.
@@ -112,7 +125,8 @@ export default function DataTable({
 
   if (dataset.headers.length === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl">
+      <section className="mx-auto mt-6 max-w-4xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             Uploaded CSV is empty.
@@ -124,7 +138,8 @@ export default function DataTable({
 
   if (dataset.rows.length === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-4xl">
+      <section className="mx-auto mt-6 max-w-4xl space-y-4">
+        {sectionHeader}
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
             No data rows.
@@ -140,7 +155,8 @@ export default function DataTable({
   const previewRows = dataset.rows.slice(startIndex, startIndex + PAGE_SIZE);
   const pageItems = getPageItems(totalPages, activePage);
   return (
-    <section className="mx-auto mt-6 max-w-7xl space-y-3">
+    <section className="mx-auto mt-8 max-w-7xl space-y-4">
+      {sectionHeader}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Dataset preview</CardTitle>
