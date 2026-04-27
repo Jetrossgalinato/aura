@@ -99,7 +99,6 @@ export default function DataTable({
   if (!file) {
     return (
       <section className="mx-auto mt-6 max-w-4xl space-y-4">
-        {sectionHeader}
         <Card className="border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             No dataset uploaded yet. Upload a CSV, XLS, or XLSX file to see the
