@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.categorical import router as categorical_router
 from app.api.cleaning import router as cleaning_router
+from app.api.splitting import router as splitting_router
 
 app = FastAPI()
 
@@ -24,3 +25,4 @@ def hello_world():
 
 app.include_router(cleaning_router, prefix="/api")
 app.include_router(categorical_router, prefix="/api")
+app.include_router(splitting_router, prefix="/api")
