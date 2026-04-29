@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyLarge, TypographyMuted } from "@/components/typography";
 import {
@@ -46,6 +47,7 @@ export default function ModelTraining({
   const [testSize, setTestSize] = useState(0.2);
   const [preview, setPreview] = useState<ModelTrainingPreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [previewError, setPreviewError] = useState("");
   const [page, setPage] = useState(1);
 
@@ -198,6 +200,34 @@ export default function ModelTraining({
     };
   }, [dataset, hasDataset, sortedFeatures, targetIndex, testSize]);
 
+  useEffect(() => {
+    if (!isPreviewLoading) {
+      return;
+    }
+
+    const initialDelayId = window.setTimeout(() => {
+      setLoadingProgress(8);
+    }, 0);
+
+    const intervalId = window.setInterval(() => {
+      setLoadingProgress((current) => {
+        if (current >= 92) {
+          return 92;
+        }
+
+        const nextStep = Math.max(1.5, (100 - current) * 0.12);
+        return Math.min(92, Number((current + nextStep).toFixed(1)));
+      });
+    }, 240);
+
+    return () => {
+      window.clearTimeout(initialDelayId);
+      window.clearInterval(intervalId);
+    };
+  }, [isPreviewLoading]);
+
+  const displayedLoadingProgress = isPreviewLoading ? loadingProgress : 0;
+
   const toggleFeature = useCallback((index: number) => {
     setSelectedFeatures((current) => {
       if (current.includes(index)) {
@@ -302,6 +332,18 @@ export default function ModelTraining({
                 The models are fitting the selected split and preparing the
                 comparison metrics.
               </p>
+            </div>
+
+            <div className="w-full max-w-xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span className="uppercase tracking-wide text-muted-foreground">
+                  Pipeline completion
+                </span>
+                <span className="tabular-nums text-primary">
+                  {Math.round(displayedLoadingProgress)}%
+                </span>
+              </div>
+              <Progress value={displayedLoadingProgress} className="h-2" />
             </div>
 
             <div className="grid w-full gap-2 sm:grid-cols-3">
