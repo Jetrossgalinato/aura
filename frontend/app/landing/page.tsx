@@ -36,7 +36,11 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="flex-col justify-center items-center min-h-screen">
+    <div
+      className={`flex-col justify-center items-center ${
+        !file ? "h-screen overflow-hidden" : "min-h-screen"
+      }`}
+    >
       <Header />
       <Import onFileSelect={handleFileSelect} onClear={handleImportClear} />
       <DataTable
