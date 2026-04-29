@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { TypographyLarge, TypographyMuted } from "@/components/typography";
 import {
   Table,
@@ -285,9 +286,38 @@ export default function ModelTraining({
       </Card>
 
       {isPreviewLoading && !preview ? (
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            Training models and preparing comparison metrics.
+        <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-muted/30">
+          <CardContent className="flex flex-col items-center justify-center gap-4 p-8 text-center sm:p-10">
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-primary/10 bg-background/70 shadow-sm">
+              <div className="absolute inset-2 rounded-full border border-dashed border-primary/20 animate-pulse" />
+              <div className="absolute inset-0 rounded-full bg-primary/10 blur-2xl" />
+              <Spinner className="size-8 text-primary" />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary">
+                Training in progress
+              </p>
+              <p className="text-sm text-muted-foreground">
+                The models are fitting the selected split and preparing the
+                comparison metrics.
+              </p>
+            </div>
+
+            <div className="grid w-full gap-2 sm:grid-cols-3">
+              {[
+                "Scaling features",
+                "Evaluating classifiers",
+                "Building confusion matrices",
+              ].map((label) => (
+                <div
+                  key={label}
+                  className="rounded-full border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground shadow-sm"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ) : null}
