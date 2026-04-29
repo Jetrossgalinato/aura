@@ -413,6 +413,13 @@ export default function ModelTraining({
 
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Confusion Matrix
+                    </p>
+                    <ConfusionMatrix matrix={result.metrics.confusionMatrix} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Prediction preview
                     </p>
                     <div className="rounded-md border">
@@ -566,6 +573,69 @@ function Metric({ label, value }: { label: string; value: number }) {
         {label}
       </p>
       <p className="text-sm font-medium">{value.toFixed(4)}</p>
+    </div>
+  );
+}
+
+function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
+  if (!matrix || matrix.length === 0) {
+    return (
+      <div className="rounded-md border p-2 text-center text-xs text-muted-foreground">
+        No confusion matrix data available.
+      </div>
+    );
+  }
+
+  const n = matrix.length;
+  const labels = Array.from({ length: n }, (_, i) => i.toString());
+  const maxValue = Math.max(...matrix.flat());
+
+  const getColorIntensity = (value: number): string => {
+    const ratio = value / maxValue;
+    if (ratio === 0) return "bg-slate-50";
+    if (ratio < 0.25) return "bg-green-100";
+    if (ratio < 0.5) return "bg-green-200";
+    if (ratio < 0.75) return "bg-green-300";
+    return "bg-green-400";
+  };
+
+  return (
+    <div className="space-y-1 rounded-md border p-2">
+      <div className="flex gap-1">
+        <div className="w-6" />
+        {labels.map((label) => (
+          <div
+            key={`col-${label}`}
+            className="flex h-6 w-6 items-center justify-center text-[10px] font-semibold text-muted-foreground"
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {matrix.map((row, i) => (
+        <div key={`row-${i}`} className="flex gap-1">
+          <div className="flex h-6 w-6 items-center justify-center text-[10px] font-semibold text-muted-foreground">
+            {labels[i]}
+          </div>
+          {row.map((value, j) => (
+            <div
+              key={`cell-${i}-${j}`}
+              className={`flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium transition-colors ${getColorIntensity(value)}`}
+              title={`Actual: ${labels[i]}, Predicted: ${labels[j]}, Count: ${value}`}
+            >
+              {value}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <div className="border-t pt-1">
+        <p className="text-[10px] text-muted-foreground">
+          <span className="font-semibold">Rows:</span> Actual |{" "}
+          <span className="font-semibold">Columns:</span> Predicted
+        </p>
+      </div>
     </div>
   );
 }
