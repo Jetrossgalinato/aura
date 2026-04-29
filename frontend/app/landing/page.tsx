@@ -8,6 +8,7 @@ import DataTable from "./components/data-table";
 import CleanedVer from "./components/cleaned-ver";
 import Categorical from "./components/categorical";
 import SplitVer from "./components/split-ver";
+import FeatureSelection from "./components/feature-selection";
 import { parseDatasetForTable } from "@/lib/import-utils";
 import { ParsedDataset } from "@/types/import";
 
@@ -52,6 +53,11 @@ export default function LandingPage() {
       <CleanedVer file={file} dataset={dataset} isLoading={isTableLoading} />
       <Categorical file={file} dataset={dataset} isLoading={isTableLoading} />
       <SplitVer file={file} dataset={dataset} isLoading={isTableLoading} />
+      <FeatureSelection
+        file={file}
+        dataset={dataset}
+        isLoading={isTableLoading}
+      />
     </div>
   );
 }
