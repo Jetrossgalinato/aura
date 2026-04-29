@@ -209,11 +209,23 @@ def train_models(
             ),
         )
 
+    sorted_results = sorted(
+        results,
+        key=lambda item: (item.metrics.accuracy, item.metrics.f1_score),
+        reverse=True,
+    )
+
+    for rank, result in enumerate(sorted_results, start=1):
+        result.rank = rank
+        result.is_best_model = rank == 1
+
     summary = ModelTrainingSummary(
         total_rows=len(rows),
         feature_count=len(feature_indices),
         target_header=target_header,
         test_size=test_size,
+        best_model_name=sorted_results[0].model_name if sorted_results else "",
+        best_accuracy=sorted_results[0].metrics.accuracy if sorted_results else 0.0,
     )
 
-    return selected_headers, target_header, summary, results
+    return selected_headers, target_header, summary, sorted_results

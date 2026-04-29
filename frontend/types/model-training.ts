@@ -12,6 +12,8 @@ export type ModelTrainingResult = {
   modelName: string;
   metrics: ModelMetrics;
   predictionPreview: Array<{ actual: string; predicted: string }>;
+  rank: number;
+  isBestModel: boolean;
 };
 
 export type ModelTrainingSummary = {
@@ -19,6 +21,8 @@ export type ModelTrainingSummary = {
   featureCount: number;
   targetHeader: string;
   testSize: number;
+  bestModelName: string;
+  bestAccuracy: number;
 };
 
 export type ModelTrainingPreview = {
@@ -38,6 +42,8 @@ export type ModelTrainingApiResponse = {
     feature_count: number;
     target_header: string;
     test_size: number;
+    best_model_name: string;
+    best_accuracy: number;
   };
   results: Array<{
     model_name: string;
@@ -51,5 +57,7 @@ export type ModelTrainingApiResponse = {
       test_rows: number;
     };
     prediction_preview: Array<{ actual: string; predicted: string }>;
+    rank: number;
+    is_best_model: boolean;
   }>;
 };

@@ -222,6 +222,8 @@ export default function ModelTraining({
     startIndex,
     startIndex + CLEANED_PREVIEW_ROWS,
   );
+  const bestResult =
+    preview?.results.find((result) => result.isBestModel) ?? null;
 
   return (
     <section className="mx-auto mt-6 max-w-7xl space-y-4">
@@ -303,6 +305,10 @@ export default function ModelTraining({
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Training Summary</CardTitle>
+              <CardDescription>
+                Results means one entry per model, each with its own evaluation
+                metrics on the same test split.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div>
@@ -332,14 +338,62 @@ export default function ModelTraining({
             </CardContent>
           </Card>
 
+          {bestResult ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Best Model</CardTitle>
+                <CardDescription>
+                  Highest accuracy on this split:{" "}
+                  {preview.summary.bestModelName}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="font-semibold">Model</p>
+                  <p className="text-muted-foreground">
+                    {bestResult.modelName}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Accuracy</p>
+                  <p className="text-muted-foreground">
+                    {bestResult.metrics.accuracy}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">F1 Score</p>
+                  <p className="text-muted-foreground">
+                    {bestResult.metrics.f1Score}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4 lg:grid-cols-3">
             {activeResults.map((result) => (
-              <Card key={result.modelName}>
+              <Card
+                key={result.modelName}
+                className={
+                  result.isBestModel ? "ring-1 ring-primary/30" : undefined
+                }
+              >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">
-                    {result.modelName}
-                  </CardTitle>
-                  <CardDescription>Model evaluation metrics</CardDescription>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">
+                        #{result.rank} {result.modelName}
+                      </CardTitle>
+                      <CardDescription>
+                        Model evaluation metrics
+                      </CardDescription>
+                    </div>
+                    {result.isBestModel ? (
+                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Best
+                      </span>
+                    ) : null}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="grid grid-cols-2 gap-3">
@@ -419,7 +473,12 @@ export default function ModelTraining({
                     {activeResults.map((result) => (
                       <TableRow key={`comparison-${result.modelName}`}>
                         <TableCell className="font-medium">
-                          {result.modelName}
+                          #{result.rank} {result.modelName}
+                          {result.isBestModel ? (
+                            <span className="ml-2 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-primary">
+                              Best
+                            </span>
+                          ) : null}
                         </TableCell>
                         <TableCell>{result.metrics.accuracy}</TableCell>
                         <TableCell>{result.metrics.precision}</TableCell>

@@ -43,6 +43,8 @@ class ModelTrainingResult(BaseModel):
     model_name: str
     metrics: ModelMetrics
     prediction_preview: list[dict[str, str]]
+    rank: int = Field(default=0, ge=0)
+    is_best_model: bool = Field(default=False)
 
 
 class ModelTrainingSummary(BaseModel):
@@ -50,6 +52,8 @@ class ModelTrainingSummary(BaseModel):
     feature_count: int
     target_header: str
     test_size: float
+    best_model_name: str
+    best_accuracy: float
 
 
 class ModelTrainingResponse(BaseModel):

@@ -55,6 +55,8 @@ export async function fetchModelTrainingPreview(
       featureCount: payload.summary.feature_count,
       targetHeader: payload.summary.target_header,
       testSize: payload.summary.test_size,
+      bestModelName: payload.summary.best_model_name,
+      bestAccuracy: payload.summary.best_accuracy,
     },
     results: payload.results.map((result) => ({
       modelName: result.model_name,
@@ -68,6 +70,8 @@ export async function fetchModelTrainingPreview(
         testRows: result.metrics.test_rows,
       },
       predictionPreview: result.prediction_preview,
+      rank: result.rank,
+      isBestModel: result.is_best_model,
     })),
   };
 }
