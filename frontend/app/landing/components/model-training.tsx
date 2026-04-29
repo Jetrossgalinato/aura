@@ -591,12 +591,29 @@ function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
   const maxValue = Math.max(...matrix.flat());
 
   const getColorIntensity = (value: number): string => {
+    if (maxValue === 0) {
+      return "bg-muted/60 text-muted-foreground dark:bg-muted/30";
+    }
+
     const ratio = value / maxValue;
-    if (ratio === 0) return "bg-slate-50";
-    if (ratio < 0.25) return "bg-green-100";
-    if (ratio < 0.5) return "bg-green-200";
-    if (ratio < 0.75) return "bg-green-300";
-    return "bg-green-400";
+
+    if (ratio === 0) {
+      return "bg-muted/60 text-muted-foreground dark:bg-muted/30";
+    }
+
+    if (ratio < 0.25) {
+      return "bg-emerald-100 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-50";
+    }
+
+    if (ratio < 0.5) {
+      return "bg-emerald-200 text-emerald-950 dark:bg-emerald-900/55 dark:text-emerald-50";
+    }
+
+    if (ratio < 0.75) {
+      return "bg-emerald-300 text-emerald-950 dark:bg-emerald-800 dark:text-emerald-50";
+    }
+
+    return "bg-emerald-400 text-emerald-950 dark:bg-emerald-600 dark:text-foreground";
   };
 
   return (
@@ -621,7 +638,7 @@ function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
           {row.map((value, j) => (
             <div
               key={`cell-${i}-${j}`}
-              className={`flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium transition-colors ${getColorIntensity(value)}`}
+              className={`flex h-6 w-6 items-center justify-center rounded border border-border/60 text-[10px] font-medium transition-colors ${getColorIntensity(value)}`}
               title={`Actual: ${labels[i]}, Predicted: ${labels[j]}, Count: ${value}`}
             >
               {value}
