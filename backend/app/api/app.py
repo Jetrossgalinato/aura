@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.categorical import router as categorical_router
 from app.api.cleaning import router as cleaning_router
 from app.api.feature_selection import router as feature_selection_router
+from app.api.model_training import router as model_training_router
 from app.api.splitting import router as splitting_router
 
 app = FastAPI()
@@ -28,3 +29,4 @@ app.include_router(cleaning_router, prefix="/api")
 app.include_router(categorical_router, prefix="/api")
 app.include_router(splitting_router, prefix="/api")
 app.include_router(feature_selection_router, prefix="/api")
+app.include_router(model_training_router, prefix="/api")

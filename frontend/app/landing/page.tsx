@@ -9,6 +9,7 @@ import CleanedVer from "./components/cleaned-ver";
 import Categorical from "./components/categorical";
 import SplitVer from "./components/split-ver";
 import FeatureSelection from "./components/feature-selection";
+import ModelTraining from "./components/model-training";
 import { parseDatasetForTable } from "@/lib/import-utils";
 import { ParsedDataset } from "@/types/import";
 
@@ -58,6 +59,7 @@ export default function LandingPage() {
         dataset={dataset}
         isLoading={isTableLoading}
       />
+      <ModelTraining file={file} dataset={dataset} isLoading={isTableLoading} />
     </div>
   );
 }
