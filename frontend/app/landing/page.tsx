@@ -7,6 +7,9 @@ import Import from "./components/import";
 import DataTable from "./components/data-table";
 import CleanedVer from "./components/cleaned-ver";
 import Categorical from "./components/categorical";
+import SplitVer from "./components/split-ver";
+import FeatureSelection from "./components/feature-selection";
+import ModelTraining from "./components/model-training";
 import { parseDatasetForTable } from "@/lib/import-utils";
 import { ParsedDataset } from "@/types/import";
 
@@ -35,7 +38,11 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="flex-col justify-center items-center min-h-screen">
+    <div
+      className={`flex-col justify-center items-center ${
+        !file ? "h-screen overflow-hidden" : "min-h-screen"
+      }`}
+    >
       <Header />
       <Import onFileSelect={handleFileSelect} onClear={handleImportClear} />
       <DataTable
@@ -46,6 +53,13 @@ export default function LandingPage() {
       />
       <CleanedVer file={file} dataset={dataset} isLoading={isTableLoading} />
       <Categorical file={file} dataset={dataset} isLoading={isTableLoading} />
+      <SplitVer file={file} dataset={dataset} isLoading={isTableLoading} />
+      <FeatureSelection
+        file={file}
+        dataset={dataset}
+        isLoading={isTableLoading}
+      />
+      <ModelTraining file={file} dataset={dataset} isLoading={isTableLoading} />
     </div>
   );
 }
