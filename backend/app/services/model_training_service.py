@@ -14,15 +14,21 @@ import warnings
 
 from app.schemas.model_training import ModelMetrics, ModelTrainingResult, ModelTrainingSummary
 
+# Suppress convergence warnings from models like MLPClassifier to keep logs clean
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
 def _validate_index(index: int, column_count: int, field_name: str) -> None:
+    """Ensures a provided column index is within the bounds of the dataset."""
     if index < 0 or index >= column_count:
         raise ValueError(f"{field_name} contains out-of-range index: {index}")
 
 
 def _coerce_value(value: str) -> str | float:
+    """
+    Attempts to convert a string value to a float. 
+    Returns np.nan for empty or 'N/A' strings, float if numeric, or the original string otherwise.
+    """
     stripped_value = value.strip()
 
     if stripped_value == "" or stripped_value.upper() == "N/A":
@@ -35,6 +41,10 @@ def _coerce_value(value: str) -> str | float:
 
 
 def _is_numeric_target(values: list[str]) -> bool:
+    """
+    Heuristic to determine if the target variable is numeric.
+    Returns True if at least 90% of the non-empty values can be parsed as floats.
+    """
     numeric_count = 0
     total_count = 0
 
@@ -45,6 +55,7 @@ def _is_numeric_target(values: list[str]) -> bool:
         total_count += 1
         coerced_value = _coerce_value(value)
 
+        # Skip valid strings or explicit NaNs
         if isinstance(coerced_value, str) or np.isnan(coerced_value):
             continue
 
@@ -54,6 +65,10 @@ def _is_numeric_target(values: list[str]) -> bool:
 
 
 def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
+    """
+    Converts a continuous numeric target variable into discrete categories (classification).
+    Supports 'median', 'quartile', and 'tertile' (default) binning strategies.
+    """
     numeric_values: list[float] = []
 
     for value in values:
@@ -69,6 +84,7 @@ def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
 
     labeled_values: list[str] = []
 
+    # Bin into 2 classes: Low, High
     if strategy == "median":
         threshold = float(np.median(numeric_values))
 
@@ -80,6 +96,7 @@ def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
 
         return labeled_values
 
+    # Bin into 4 classes: Low, Medium, High, Very High
     if strategy == "quartile":
         q1 = float(np.quantile(numeric_values, 0.25))
         q2 = float(np.quantile(numeric_values, 0.5))
@@ -97,7 +114,7 @@ def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
 
         return labeled_values
 
-    # Default tertile strategy
+    # Default strategy: Tertile (Bin into 3 classes: Low, Medium, High)
     unique_values = len(set(numeric_values))
     if unique_values < 3:
         lower_threshold = float(np.median(numeric_values))
@@ -106,6 +123,7 @@ def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
         lower_threshold = float(np.quantile(numeric_values, 1 / 3))
         upper_threshold = float(np.quantile(numeric_values, 2 / 3))
 
+    # Fallback to median if quantiles overlap (e.g., highly skewed data)
     if lower_threshold == upper_threshold:
         midpoint = float(np.median(numeric_values))
         lower_threshold = midpoint
@@ -123,6 +141,7 @@ def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
 
 
 def _prepare_rows(rows: list[list[str]], indices: list[int]) -> list[list[str]]:
+    """Filters the full dataset down to only the requested feature column indices."""
     projected_rows: list[list[str]] = []
 
     for row in rows:
@@ -135,6 +154,10 @@ def _prepare_feature_matrix(
     rows: list[list[str]],
     numeric_indices: list[int],
 ) -> list[list[str | float]]:
+    """
+    Parses the string matrix into a mixed-type matrix.
+    Converts values in numeric columns to floats (or np.nan), leaving categorical columns as strings.
+    """
     numeric_index_set = set(numeric_indices)
     prepared_rows: list[list[str | float]] = []
 
@@ -158,6 +181,10 @@ def _prepare_feature_matrix(
 
 
 def _is_numeric_feature(values: list[str]) -> bool:
+    """
+    Heuristic to determine if a feature column is numeric.
+    Returns True if at least 70% of the non-empty values can be parsed as floats.
+    """
     numeric_count = 0
     total_count = 0
 
@@ -179,8 +206,13 @@ def _build_pipeline(
     categorical_indices: list[int],
     overrides: dict | None = None,
 ) -> Pipeline:
+    """
+    Constructs a scikit-learn Pipeline with preprocessing and a classifier.
+    Handles imputing missing values and scaling/encoding based on data type.
+    """
     params = overrides or {}
 
+    # Initialize the specific classifier based on the provided model_name
     if model_name == "KNN":
         classifier = KNeighborsClassifier(
             n_neighbors=params.get("n_neighbors", 7),
@@ -193,7 +225,7 @@ def _build_pipeline(
             gamma=params.get("gamma", "scale"),
             probability=False,
         )
-    else:
+    else:  # ANN / MLPClassifier
         classifier = MLPClassifier(
             hidden_layer_sizes=params.get("hidden_layer_sizes", (64, 32)),
             solver=params.get("solver", "lbfgs"),
@@ -205,6 +237,7 @@ def _build_pipeline(
 
     transformers: list[tuple[str, Pipeline, list[int]]] = []
 
+    # Preprocessing for continuous/numeric features: Impute missing with median -> Standardize
     if numeric_indices:
         transformers.append(
             (
@@ -219,6 +252,7 @@ def _build_pipeline(
             ),
         )
 
+    # Preprocessing for categorical features: Impute missing with mode -> One-Hot Encode
     if categorical_indices:
         transformers.append(
             (
@@ -251,6 +285,10 @@ def _build_pipeline(
 
 
 def _can_stratify(target_values: list[str]) -> bool:
+    """
+    Checks if train_test_split can use stratification.
+    Requires at least 2 distinct classes, and each class must have at least 2 samples.
+    """
     label_counts: dict[str, int] = {}
 
     for value in target_values:
@@ -260,6 +298,7 @@ def _can_stratify(target_values: list[str]) -> bool:
 
 
 def _get_model_candidates(model_name: str) -> list[dict]:
+    """Provides a hardcoded list of hyperparameter sets to search through for tuning."""
     if model_name == "KNN":
         return [
             {"n_neighbors": 13, "weights": "distance"},
@@ -278,6 +317,7 @@ def _get_model_candidates(model_name: str) -> list[dict]:
             {"C": 3.0, "gamma": 0.08},
         ]
 
+    # ANN
     return [
         {
             "hidden_layer_sizes": (64, 32),
@@ -316,6 +356,10 @@ def _build_fallback_metrics(
     y_train: list[str],
     y_test: list[str],
 ) -> tuple[list[list[int]], list[dict[str, str]], ModelMetrics]:
+    """
+    Provides fallback metrics using a DummyClassifier if standard model training fails.
+    This ensures the pipeline doesn't crash completely and returns baseline scores.
+    """
     dummy = DummyClassifier(strategy="most_frequent")
     dummy.fit(X_train, y_train)
     predictions = dummy.predict(X_test)
@@ -348,6 +392,11 @@ def _select_best_binning_strategy(
     numeric_feature_indices: list[int],
     categorical_feature_indices: list[int],
 ) -> str:
+    """
+    Automates the selection of a binning strategy for numeric targets.
+    Evaluates 'median', 'tertile', and 'quartile' using a fast SVM probe and returns
+    the strategy that yields the highest validation accuracy.
+    """
     candidate_strategies = ["median", "tertile", "quartile"]
     best_strategy = "tertile"
     best_score = -1.0
@@ -368,6 +417,7 @@ def _select_best_binning_strategy(
                 stratify=candidate_target if _can_stratify(candidate_target) else None,
             )
 
+            # Use a fast, standard SVM to probe for binning viability
             probe_pipeline = _build_pipeline(
                 "SVM",
                 numeric_feature_indices,
@@ -382,6 +432,7 @@ def _select_best_binning_strategy(
                 best_strategy = strategy
                 best_score = score
         except Exception:
+            # Skip strategies that fail (e.g., due to extreme class imbalances)
             continue
 
     return best_strategy
@@ -396,8 +447,14 @@ def train_models(
     test_size: float = 0.2,
     random_state: int | None = 42,
 ) -> tuple[list[str], str, ModelTrainingSummary, list[ModelTrainingResult]]:
+    """
+    Main orchestration function for the ML pipeline. 
+    Handles data validation, feature extraction, binning, hyperparameter search, 
+    training across multiple models, evaluation, and ranking.
+    """
     column_count = len(headers)
 
+    # 1. Validation
     if column_count == 0:
         raise ValueError("Dataset must include at least one header")
 
@@ -409,6 +466,7 @@ def train_models(
     if target_index in feature_indices:
         raise ValueError("target_index must not overlap selected features")
 
+    # 2. Extract specific features and target based on user selection
     selected_indices = list(feature_indices)
     selected_headers = [headers[index] for index in selected_indices]
     target_header = headers[target_index]
@@ -419,6 +477,7 @@ def train_models(
     if len(feature_rows) != len(target_values):
         raise ValueError("Feature rows and target rows must have the same length")
 
+    # 3. Classify features as numeric or categorical for the preprocessing pipeline
     feature_column_count = len(selected_indices)
     numeric_feature_indices: list[int] = []
     categorical_feature_indices: list[int] = []
@@ -436,6 +495,7 @@ def train_models(
         numeric_feature_indices,
     )
 
+    # 4. Handle target variable binning if it's continuous
     selected_binning_strategy: str | None = None
 
     if _is_numeric_target(target_values):
@@ -453,6 +513,7 @@ def train_models(
             selected_binning_strategy,
         )
 
+    # 5. Split dataset into Training and Testing sets
     X_train, X_test, y_train, y_test = train_test_split(
         prepared_feature_rows,
         target_values,
@@ -463,16 +524,15 @@ def train_models(
 
     results: list[ModelTrainingResult] = []
 
+    # 6. Train, Search, and Evaluate each model type
     for model_name in ["KNN", "SVM", "ANN"]:
         try:
-            X_fit = X_train
-            y_fit = y_train
-
             X_search_train = X_train
             y_search_train = y_train
             X_search_val = X_test
             y_search_val = y_test
 
+            # If dataset is large enough, create a smaller validation set specifically for hyperparameter tuning
             if len(X_train) > 50:
                 (
                     X_search_train,
@@ -487,6 +547,7 @@ def train_models(
                     stratify=y_train if _can_stratify(y_train) else None,
                 )
 
+            # Manual Grid Search for best hyperparameters
             best_candidate = _get_model_candidates(model_name)[0]
             best_candidate_score = -1.0
 
@@ -511,6 +572,7 @@ def train_models(
                 except Exception:
                     continue
 
+            # Train final model on full training set using best discovered hyperparameters
             pipeline = _build_pipeline(
                 model_name,
                 numeric_feature_indices,
@@ -520,6 +582,7 @@ def train_models(
             pipeline.fit(X_train, y_train)
             predictions = pipeline.predict(X_test)
 
+            # 7. Generate Metrics
             labels = sorted(set(target_values))
             matrix = confusion_matrix(y_test, predictions, labels=labels).tolist()
 
@@ -563,6 +626,7 @@ def train_models(
                 test_rows=len(X_test),
             )
 
+            # Generate sample predictions for the UI preview
             preview_count = min(5, len(y_test))
             prediction_preview = [
                 {
@@ -572,6 +636,7 @@ def train_models(
                 for index in range(preview_count)
             ]
         except Exception:
+            # Fallback if specific model throws errors (e.g., convergence issues on small datasets)
             matrix, prediction_preview, metrics = _build_fallback_metrics(X_train, X_test, y_train, y_test)
 
         results.append(
@@ -582,6 +647,7 @@ def train_models(
             ),
         )
 
+    # 8. Sort and Rank models based primarily on Accuracy, then F1-score as tie-breaker
     sorted_results = sorted(
         results,
         key=lambda item: (item.metrics.accuracy, item.metrics.f1_score),
@@ -592,6 +658,7 @@ def train_models(
         result.rank = rank
         result.is_best_model = rank == 1
 
+    # 9. Create overall summary report
     summary = ModelTrainingSummary(
         total_rows=len(rows),
         feature_count=len(feature_indices),
