@@ -8,6 +8,23 @@ export type ModelMetrics = {
   testRows: number;
 };
 
+export type RegressionMetrics = {
+  mean_absolute_error: number;
+  mean_squared_error: number;
+  root_mean_squared_error: number;
+  r2_score: number;
+  evaluation_rows: number;
+};
+
+export type RegressionPreview = {
+  format: string;
+  selected_headers: string[];
+  target_header: string;
+  summary: Record<string, unknown>;
+  metrics: RegressionMetrics;
+  prediction_preview: Array<{ actual: string; predicted: string }>;
+};
+
 export type ModelTrainingResult = {
   modelName: string;
   metrics: ModelMetrics;
@@ -20,10 +37,13 @@ export type ModelTrainingSummary = {
   totalRows: number;
   featureCount: number;
   targetHeader: string;
+  targetBinningStrategy: string | null;
   testSize: number;
   bestModelName: string;
   bestAccuracy: number;
 };
+
+export type TargetBinningStrategy = "auto" | "median" | "tertile" | "quartile";
 
 export type ModelTrainingPreview = {
   format: string;
@@ -41,6 +61,7 @@ export type ModelTrainingApiResponse = {
     total_rows: number;
     feature_count: number;
     target_header: string;
+    target_binning_strategy: string | null;
     test_size: number;
     best_model_name: string;
     best_accuracy: number;

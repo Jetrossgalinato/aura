@@ -14,6 +14,7 @@ class ModelTrainingRequest(BaseModel):
     target_index: int = Field(default=0, ge=0)
     test_size: float = Field(default=0.2, ge=0.01, le=0.99)
     random_state: int | None = Field(default=42)
+    target_binning_strategy: str = Field(default="auto")
 
     @model_validator(mode="after")
     def validate_selection(self):
@@ -25,6 +26,12 @@ class ModelTrainingRequest(BaseModel):
 
         if self.target_index in self.feature_indices:
             raise ValueError("target_index must not be included in feature_indices")
+
+        allowed_binning_strategies = {"auto", "median", "tertile", "quartile"}
+        if self.target_binning_strategy not in allowed_binning_strategies:
+            raise ValueError(
+                "target_binning_strategy must be one of: auto, median, tertile, quartile",
+            )
 
         return self
 
@@ -51,6 +58,7 @@ class ModelTrainingSummary(BaseModel):
     total_rows: int
     feature_count: int
     target_header: str
+    target_binning_strategy: str | None = None
     test_size: float
     best_model_name: str
     best_accuracy: float

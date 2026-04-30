@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Card,
@@ -32,19 +32,31 @@ import {
 } from "@/components/ui/pagination";
 import { fetchModelTrainingPreview } from "@/services/model-training";
 import { DataTableProps } from "@/types/import";
-import { ModelTrainingPreview } from "@/types/model-training";
+import { FeatureSelectionState } from "@/types/feature-selection";
+import {
+  ModelTrainingPreview,
+  TargetBinningStrategy,
+} from "@/types/model-training";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 
 const TEST_SIZE_OPTIONS = [0.2, 0.25, 0.3];
+const TARGET_BINNING_OPTIONS: TargetBinningStrategy[] = [
+  "auto",
+  "median",
+  "tertile",
+  "quartile",
+];
 
 export default function ModelTraining({
   file,
   dataset,
   isLoading = false,
-}: DataTableProps) {
-  const [selectedFeatures, setSelectedFeatures] = useState<number[]>([]);
-  const [targetIndex, setTargetIndex] = useState<number | null>(null);
+  selectedFeatures,
+  targetIndex,
+}: DataTableProps & FeatureSelectionState) {
   const [testSize, setTestSize] = useState(0.2);
+  const [targetBinningStrategy, setTargetBinningStrategy] =
+    useState<TargetBinningStrategy>("auto");
   const [preview, setPreview] = useState<ModelTrainingPreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -57,7 +69,35 @@ export default function ModelTraining({
     !!dataset &&
     dataset.headers.length > 0 &&
     dataset.rows.length > 0;
-  const canTrain = hasDataset && !!dataset && dataset.headers.length > 1;
+  const hasSelection = selectedFeatures.length > 0 && targetIndex !== null;
+
+  const isNumericTarget = useMemo(() => {
+    if (!dataset || targetIndex === null) {
+      return false;
+    }
+
+    const targetValues = dataset.rows
+      .map((row) => row[targetIndex] ?? "")
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    if (targetValues.length === 0) {
+      return false;
+    }
+
+    let numericCount = 0;
+    const uniqueValues = new Set<string>();
+
+    for (const value of targetValues) {
+      uniqueValues.add(value);
+
+      if (!Number.isNaN(Number(value))) {
+        numericCount += 1;
+      }
+    }
+
+    return numericCount / targetValues.length >= 0.9 && uniqueValues.size > 30;
+  }, [dataset, targetIndex]);
 
   const sectionHeader = (
     <div className="space-y-1 pb-2">
@@ -69,67 +109,13 @@ export default function ModelTraining({
   );
 
   useEffect(() => {
-    let isCancelled = false;
-
-    if (!hasDataset || !dataset) {
+    if (!hasDataset) {
       Promise.resolve().then(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setSelectedFeatures([]);
-        setTargetIndex(null);
         setPreview(null);
         setPage(1);
       });
-
-      return () => {
-        isCancelled = true;
-      };
     }
-
-    if (dataset.headers.length === 1) {
-      Promise.resolve().then(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setSelectedFeatures([]);
-        setTargetIndex(null);
-        setPreview(null);
-        setPreviewError(
-          "Model training requires at least two columns: one feature and one target.",
-        );
-      });
-
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    const totalHeaders = dataset.headers.length;
-
-    Promise.resolve().then(() => {
-      if (isCancelled) {
-        return;
-      }
-
-      if (totalHeaders === 1) {
-        setSelectedFeatures([0]);
-        setTargetIndex(0);
-        return;
-      }
-
-      setSelectedFeatures(
-        Array.from({ length: totalHeaders - 1 }, (_, index) => index),
-      );
-      setTargetIndex(totalHeaders - 1);
-    });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [dataset, hasDataset]);
+  }, [hasDataset]);
 
   const sortedFeatures = useMemo(
     () => [...selectedFeatures].sort((left, right) => left - right),
@@ -140,6 +126,16 @@ export default function ModelTraining({
     let isCancelled = false;
 
     if (!hasDataset || !dataset || targetIndex === null) {
+      Promise.resolve().then(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setPreview(null);
+        setPreviewError("");
+        setPage(1);
+      });
+
       return () => {
         isCancelled = true;
       };
@@ -170,7 +166,13 @@ export default function ModelTraining({
       setPreview(null);
     });
 
-    fetchModelTrainingPreview(dataset, sortedFeatures, targetIndex, testSize)
+    fetchModelTrainingPreview(
+      dataset,
+      sortedFeatures,
+      targetIndex,
+      targetBinningStrategy,
+      testSize,
+    )
       .then((response) => {
         if (isCancelled) {
           return;
@@ -198,7 +200,14 @@ export default function ModelTraining({
     return () => {
       isCancelled = true;
     };
-  }, [dataset, hasDataset, sortedFeatures, targetIndex, testSize]);
+  }, [
+    dataset,
+    hasDataset,
+    sortedFeatures,
+    targetBinningStrategy,
+    targetIndex,
+    testSize,
+  ]);
 
   useEffect(() => {
     if (!isPreviewLoading) {
@@ -228,17 +237,7 @@ export default function ModelTraining({
 
   const displayedLoadingProgress = isPreviewLoading ? loadingProgress : 0;
 
-  const toggleFeature = useCallback((index: number) => {
-    setSelectedFeatures((current) => {
-      if (current.includes(index)) {
-        return current.filter((value) => value !== index);
-      }
-
-      return [...current, index];
-    });
-  }, []);
-
-  if (!hasDataset || !dataset || !canTrain) {
+  if (!hasDataset || !dataset) {
     return null;
   }
 
@@ -260,60 +259,72 @@ export default function ModelTraining({
     <section className="mx-auto mt-6 max-w-7xl space-y-4">
       {sectionHeader}
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Training Inputs</CardTitle>
-          <CardDescription>
-            Choose which columns are used as features and which one is the
-            target.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {dataset.headers.map((header, index) => (
-              <div
-                key={`${header}-${index}`}
-                className="rounded-md border p-3 text-sm"
-              >
-                <p className="truncate font-medium">{header}</p>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={selectedFeatures.includes(index)}
-                      onChange={() => toggleFeature(index)}
-                    />
-                    Feature
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="radio"
-                      name="training-target-column"
-                      checked={targetIndex === index}
-                      onChange={() => setTargetIndex(index)}
-                    />
-                    Target
-                  </label>
+      {!hasSelection ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+            <p className="text-base font-semibold text-foreground">
+              Select Features and Target
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Configure at least one feature and one target column in the
+              Feature Selection section above to proceed with model training.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Training Configuration</CardTitle>
+            <CardDescription>
+              Features: {selectedFeatures.length} • Target:{" "}
+              {targetIndex !== null ? dataset.headers[targetIndex] : "None"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {TEST_SIZE_OPTIONS.map((option) => (
+                <Button
+                  key={option}
+                  type="button"
+                  variant={testSize === option ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTestSize(option)}
+                >
+                  Test {(option * 100).toFixed(0)}%
+                </Button>
+              ))}
+            </div>
+            {isNumericTarget ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Target Binning
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {TARGET_BINNING_OPTIONS.map((option) => (
+                    <Button
+                      key={option}
+                      type="button"
+                      variant={
+                        targetBinningStrategy === option ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setTargetBinningStrategy(option)}
+                    >
+                      {option}
+                    </Button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2 border-t pt-3">
-            {TEST_SIZE_OPTIONS.map((option) => (
-              <Button
-                key={option}
-                type="button"
-                variant={testSize === option ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTestSize(option)}
-              >
-                Test {(option * 100).toFixed(0)}%
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            ) : null}
+            {isNumericTarget ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                FinalGrade is numeric, so I bin it into Low, Medium, and High
+                classes before running KNN, SVM, and ANN.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
 
       {isPreviewLoading && !preview ? (
         <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-muted/30">
@@ -402,6 +413,12 @@ export default function ModelTraining({
                 </p>
               </div>
               <div>
+                <p className="font-semibold">Binning</p>
+                <p className="text-muted-foreground">
+                  {preview.summary.targetBinningStrategy ?? "N/A"}
+                </p>
+              </div>
+              <div>
                 <p className="font-semibold">Test Size</p>
                 <p className="text-muted-foreground">
                   {(preview.summary.testSize * 100).toFixed(0)}%
@@ -409,6 +426,15 @@ export default function ModelTraining({
               </div>
             </CardContent>
           </Card>
+
+          {isNumericTarget ? (
+            <Card>
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                FinalGrade is numeric, so I bin it into Low, Medium, and High
+                classes before running KNN, SVM, and ANN.
+              </CardContent>
+            </Card>
+          ) : null}
 
           {bestResult ? (
             <Card>
@@ -660,7 +686,15 @@ function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
 
   const n = matrix.length;
   const labels = Array.from({ length: n }, (_, i) => i.toString());
-  const maxValue = Math.max(...matrix.flat());
+  let maxValue = 0;
+
+  for (const row of matrix) {
+    for (const value of row) {
+      if (value > maxValue) {
+        maxValue = value;
+      }
+    }
+  }
 
   const getColorIntensity = (value: number): string => {
     if (maxValue === 0) {

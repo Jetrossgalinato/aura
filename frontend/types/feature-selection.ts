@@ -14,6 +14,11 @@ export type FeatureSelectionPreview = {
   summary: FeatureSelectionSummary;
 };
 
+export type FeatureSelectionState = {
+  selectedFeatures: number[];
+  targetIndex: number | null;
+};
+
 export type FeatureSelectionApiResponse = {
   format: string;
   selected_headers: string[];
