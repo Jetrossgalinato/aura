@@ -30,9 +30,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { fetchModelTrainingPreview } from "@/services/model-training";
+import {
+  fetchModelTrainingPreview,
+  fetchRegressionPreview,
+} from "@/services/model-training";
 import { DataTableProps } from "@/types/import";
-import { ModelTrainingPreview } from "@/types/model-training";
+import {
+  ModelTrainingPreview,
+  RegressionPreview,
+} from "@/types/model-training";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 
 const TEST_SIZE_OPTIONS = [0.2, 0.25, 0.3];
@@ -47,6 +53,8 @@ export default function ModelTraining({
   const [testSize, setTestSize] = useState(0.2);
   const [preview, setPreview] = useState<ModelTrainingPreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [regressionPreview, setRegressionPreview] =
+    useState<RegressionPreview | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [previewError, setPreviewError] = useState("");
   const [page, setPage] = useState(1);
@@ -195,6 +203,22 @@ export default function ModelTraining({
         }
       });
 
+    // also request regression preview automatically (clear previous result asynchronously)
+    Promise.resolve().then(() => {
+      if (isCancelled) return;
+      setRegressionPreview(null);
+    });
+
+    fetchRegressionPreview(dataset, sortedFeatures, targetIndex, testSize)
+      .then((response) => {
+        if (isCancelled) return;
+        setRegressionPreview(response);
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setRegressionPreview(null);
+      });
+
     return () => {
       isCancelled = true;
     };
@@ -255,6 +279,8 @@ export default function ModelTraining({
   );
   const bestResult =
     preview?.results.find((result) => result.isBestModel) ?? null;
+
+  const regressionHasResult = !!regressionPreview;
 
   return (
     <section className="mx-auto mt-6 max-w-7xl space-y-4">
@@ -437,6 +463,72 @@ export default function ModelTraining({
                   <p className="text-muted-foreground">
                     {bestResult.metrics.f1Score}
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {regressionHasResult ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Regression Preview</CardTitle>
+                <CardDescription>
+                  RandomForest regression trained with notebook pipeline.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="font-semibold">Model</p>
+                  <p className="text-muted-foreground">RandomForestRegressor</p>
+                </div>
+                <div>
+                  <p className="font-semibold">MAE</p>
+                  <p className="text-muted-foreground">
+                    {regressionPreview?.metrics.mean_absolute_error}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">R2</p>
+                  <p className="text-muted-foreground">
+                    {regressionPreview?.metrics.r2_score}
+                  </p>
+                </div>
+              </CardContent>
+
+              <CardContent>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Prediction preview
+                </p>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Actual</TableHead>
+                        <TableHead>Predicted</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {regressionPreview?.prediction_preview?.length ? (
+                        regressionPreview.prediction_preview.map(
+                          (item, idx) => (
+                            <TableRow key={`reg-pre-${idx}`}>
+                              <TableCell>{item.actual}</TableCell>
+                              <TableCell>{item.predicted}</TableCell>
+                            </TableRow>
+                          ),
+                        )
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={2}
+                            className="text-muted-foreground"
+                          >
+                            No preview predictions available.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>

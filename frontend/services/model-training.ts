@@ -3,6 +3,7 @@ import {
   ModelTrainingApiResponse,
   ModelTrainingPreview,
 } from "@/types/model-training";
+import { RegressionPreview } from "@/types/model-training";
 
 function getBackendUrl(): string {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "");
@@ -12,6 +13,39 @@ function getBackendUrl(): string {
   }
 
   return backendUrl;
+}
+
+export async function fetchRegressionPreview(
+  dataset: ParsedDataset,
+  featureIndices: number[],
+  targetIndex: number,
+  testSize = 0.2,
+): Promise<RegressionPreview> {
+  const response = await fetch(
+    `${getBackendUrl()}/api/model-training/regression-preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dataset: {
+          format: dataset.format,
+          headers: dataset.headers,
+          rows: dataset.rows,
+        },
+        feature_indices: featureIndices,
+        target_index: targetIndex,
+        test_size: testSize,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch regression preview from backend");
+  }
+
+  const payload = await response.json();
+
+  return payload as RegressionPreview;
 }
 
 export async function fetchModelTrainingPreview(

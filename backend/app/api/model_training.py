@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.model_training import ModelTrainingRequest, ModelTrainingResponse
+from app.schemas.regression import RegressionTrainingRequest, RegressionResponse
 from app.services.model_training_service import train_models
+from app.services.regression_service import train_regression_from_notebook
 
 router = APIRouter()
 
@@ -27,3 +29,20 @@ def model_training_preview(payload: ModelTrainingRequest):
         summary=summary,
         results=results,
     )
+
+
+@router.post("/model-training/regression-preview", response_model=RegressionResponse)
+def model_training_regression_preview(payload: RegressionTrainingRequest):
+    try:
+        result = train_regression_from_notebook(
+            headers=payload.dataset.headers,
+            rows=payload.dataset.rows,
+            feature_indices=payload.feature_indices,
+            target_index=payload.target_index,
+            test_size=payload.test_size,
+            random_state=payload.random_state,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    return RegressionResponse(**result)
