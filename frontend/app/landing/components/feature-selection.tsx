@@ -29,14 +29,22 @@ import {
 } from "@/components/ui/pagination";
 import { fetchFeatureSelectionPreview } from "@/services/feature-selection";
 import { DataTableProps } from "@/types/import";
-import { FeatureSelectionPreview } from "@/types/feature-selection";
+import {
+  FeatureSelectionPreview,
+  FeatureSelectionState,
+} from "@/types/feature-selection";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
+
+type FeatureSelectionProps = DataTableProps & {
+  onSelectionChange?: (selection: FeatureSelectionState) => void;
+};
 
 export default function FeatureSelection({
   file,
   dataset,
   isLoading = false,
-}: DataTableProps) {
+  onSelectionChange,
+}: FeatureSelectionProps) {
   const [selectedFeatures, setSelectedFeatures] = useState<number[]>([]);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const [preview, setPreview] = useState<FeatureSelectionPreview | null>(null);
@@ -79,36 +87,23 @@ export default function FeatureSelection({
       return;
     }
 
-    const totalHeaders = dataset.headers.length;
-
-    if (totalHeaders === 1) {
-      Promise.resolve().then(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setSelectedFeatures([0]);
-        setTargetIndex(null);
-      });
-
-      return;
-    }
-
     Promise.resolve().then(() => {
       if (isCancelled) {
         return;
       }
 
-      setSelectedFeatures(
-        Array.from({ length: totalHeaders - 1 }, (_, i) => i),
-      );
-      setTargetIndex(totalHeaders - 1);
+      setSelectedFeatures([]);
+      setTargetIndex(null);
     });
 
     return () => {
       isCancelled = true;
     };
   }, [dataset, hasDataset]);
+
+  useEffect(() => {
+    onSelectionChange?.({ selectedFeatures, targetIndex });
+  }, [onSelectionChange, selectedFeatures, targetIndex]);
 
   const sortedFeatures = useMemo(
     () => [...selectedFeatures].sort((a, b) => a - b),

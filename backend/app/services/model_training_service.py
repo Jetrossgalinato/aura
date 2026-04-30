@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.dummy import DummyClassifier
 from sklearn.impute import SimpleImputer
@@ -7,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
 import warnings
 
@@ -33,6 +34,65 @@ def _coerce_value(value: str) -> str | float:
         return stripped_value
 
 
+def _is_numeric_target(values: list[str]) -> bool:
+    numeric_count = 0
+    total_count = 0
+
+    for value in values:
+        if value is None or str(value).strip() == "":
+            continue
+
+        total_count += 1
+        coerced_value = _coerce_value(value)
+
+        if isinstance(coerced_value, str) or np.isnan(coerced_value):
+            continue
+
+        numeric_count += 1
+
+    return total_count > 0 and (numeric_count / total_count) >= 0.9
+
+
+def _bin_numeric_target(values: list[str]) -> list[str]:
+    numeric_values: list[float] = []
+
+    for value in values:
+        coerced_value = _coerce_value(value)
+
+        if isinstance(coerced_value, str) or np.isnan(coerced_value):
+            raise ValueError("Target column must not contain missing or non-numeric values")
+
+        numeric_values.append(float(coerced_value))
+
+    if not numeric_values:
+        raise ValueError("Target column must contain at least one value")
+
+    unique_values = len(set(numeric_values))
+    if unique_values < 3:
+        lower_threshold = float(np.median(numeric_values))
+        upper_threshold = lower_threshold
+    else:
+        lower_threshold = float(np.quantile(numeric_values, 1 / 3))
+        upper_threshold = float(np.quantile(numeric_values, 2 / 3))
+
+    if lower_threshold == upper_threshold:
+        midpoint = float(np.median(numeric_values))
+        lower_threshold = midpoint
+        upper_threshold = midpoint
+
+    labeled_values: list[str] = []
+
+    for value in numeric_values:
+        if value <= lower_threshold:
+            labeled_values.append("Low")
+        elif value <= upper_threshold:
+            labeled_values.append("Medium")
+        else:
+            labeled_values.append("High")
+
+    return labeled_values
+
+
 def _prepare_rows(rows: list[list[str]], indices: list[int]) -> list[list[str]]:
     projected_rows: list[list[str]] = []
 
@@ -42,18 +102,109 @@ def _prepare_rows(rows: list[list[str]], indices: list[int]) -> list[list[str]]:
     return projected_rows
 
 
-def _build_pipeline(model_name: str) -> Pipeline:
+def _prepare_feature_matrix(
+    rows: list[list[str]],
+    numeric_indices: list[int],
+) -> list[list[str | float]]:
+    numeric_index_set = set(numeric_indices)
+    prepared_rows: list[list[str | float]] = []
+
+    for row in rows:
+        prepared_row: list[str | float] = []
+
+        for column_index, value in enumerate(row):
+            if column_index in numeric_index_set:
+                coerced_value = _coerce_value(value)
+
+                if isinstance(coerced_value, str):
+                    prepared_row.append(np.nan)
+                else:
+                    prepared_row.append(float(coerced_value))
+            else:
+                prepared_row.append(value)
+
+        prepared_rows.append(prepared_row)
+
+    return prepared_rows
+
+
+def _is_numeric_feature(values: list[str]) -> bool:
+    numeric_count = 0
+    total_count = 0
+
+    for value in values:
+        coerced_value = _coerce_value(value)
+
+        if isinstance(coerced_value, str) or np.isnan(coerced_value):
+            continue
+
+        numeric_count += 1
+        total_count += 1
+
+    return total_count > 0 and (numeric_count / total_count) >= 0.7
+
+
+def _build_pipeline(
+    model_name: str,
+    numeric_indices: list[int],
+    categorical_indices: list[int],
+) -> Pipeline:
     if model_name == "KNN":
-        classifier = KNeighborsClassifier(n_neighbors=3)
+        classifier = KNeighborsClassifier(n_neighbors=7, weights="distance")
     elif model_name == "SVM":
-        classifier = SVC(kernel="rbf", probability=False)
+        classifier = SVC(kernel="rbf", C=3.0, gamma="scale", probability=False)
     else:
-        classifier = MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=500, random_state=42)
+        classifier = MLPClassifier(
+            hidden_layer_sizes=(96, 48),
+            max_iter=1200,
+            learning_rate_init=0.001,
+            alpha=0.0005,
+            early_stopping=True,
+            random_state=42,
+        )
+
+    transformers: list[tuple[str, Pipeline, list[int]]] = []
+
+    if numeric_indices:
+        transformers.append(
+            (
+                "num",
+                Pipeline(
+                    steps=[
+                        ("imputer", SimpleImputer(strategy="median")),
+                        ("scaler", StandardScaler()),
+                    ],
+                ),
+                numeric_indices,
+            ),
+        )
+
+    if categorical_indices:
+        transformers.append(
+            (
+                "cat",
+                Pipeline(
+                    steps=[
+                        ("imputer", SimpleImputer(strategy="most_frequent")),
+                        (
+                            "encoder",
+                            OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                        ),
+                    ],
+                ),
+                categorical_indices,
+            ),
+        )
+
+    if not transformers:
+        raise ValueError("No valid feature columns available for model training")
 
     return Pipeline(
         steps=[
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
+            (
+                "preprocessor",
+                ColumnTransformer(transformers=transformers, remainder="drop"),
+            ),
             ("classifier", classifier),
         ],
     )
@@ -128,11 +279,31 @@ def train_models(
     feature_rows = _prepare_rows(rows, selected_indices)
     target_values = [row[target_index] if target_index < len(row) else "" for row in rows]
 
+    if _is_numeric_target(target_values):
+        target_values = _bin_numeric_target(target_values)
+
     if len(feature_rows) != len(target_values):
         raise ValueError("Feature rows and target rows must have the same length")
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    feature_column_count = len(selected_indices)
+    numeric_feature_indices: list[int] = []
+    categorical_feature_indices: list[int] = []
+
+    for feature_col_index in range(feature_column_count):
+        column_values = [row[feature_col_index] for row in feature_rows]
+
+        if _is_numeric_feature(column_values):
+            numeric_feature_indices.append(feature_col_index)
+        else:
+            categorical_feature_indices.append(feature_col_index)
+
+    prepared_feature_rows = _prepare_feature_matrix(
         feature_rows,
+        numeric_feature_indices,
+    )
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        prepared_feature_rows,
         target_values,
         test_size=test_size,
         random_state=random_state,
@@ -143,7 +314,11 @@ def train_models(
 
     for model_name in ["KNN", "SVM", "ANN"]:
         try:
-            pipeline = _build_pipeline(model_name)
+            pipeline = _build_pipeline(
+                model_name,
+                numeric_feature_indices,
+                categorical_feature_indices,
+            )
             pipeline.fit(X_train, y_train)
             predictions = pipeline.predict(X_test)
 

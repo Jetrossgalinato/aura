@@ -34,6 +34,31 @@ def _prepare_rows(rows: List[List[str]], indices: List[int]) -> List[List[str]]:
     return projected
 
 
+def _prepare_feature_rows(
+    rows: List[List[str]],
+    numeric_indices: List[int],
+    categorical_indices: List[int],
+) -> List[List[object]]:
+    prepared_rows: List[List[object]] = []
+    numeric_set = set(numeric_indices)
+    categorical_set = set(categorical_indices)
+
+    for row in rows:
+        prepared_row: List[object] = []
+
+        for column_index in range(len(row)):
+            cell = row[column_index] if column_index < len(row) else ""
+
+            if column_index in numeric_set:
+                prepared_row.append(_coerce_value(cell))
+            elif column_index in categorical_set:
+                prepared_row.append(cell)
+
+        prepared_rows.append(prepared_row)
+
+    return prepared_rows
+
+
 def _is_column_numeric(col_values: List[str]) -> bool:
     # consider numeric if majority of non-empty values coerce to float
     numeric_count = 0
@@ -80,17 +105,25 @@ def train_regression_from_notebook(headers: List[str], rows: List[List[str]], fe
             raise ValueError(f"Target column must be numeric on row {i + 1}")
         y.append(float(c))
 
-    X = np.array(feature_rows, dtype=object)
+    if not feature_rows:
+        raise ValueError("No feature rows available")
+
+    column_total = len(feature_rows[0])
 
     # determine numeric vs categorical for each selected column
     numeric_indices = []
     categorical_indices = []
-    for col in range(X.shape[1]):
+    for col in range(column_total):
         col_vals = [row[col] for row in feature_rows]
         if _is_column_numeric(col_vals):
             numeric_indices.append(col)
         else:
             categorical_indices.append(col)
+
+    X = np.array(
+        _prepare_feature_rows(feature_rows, numeric_indices, categorical_indices),
+        dtype=object,
+    )
 
     transformers = []
     if numeric_indices:
@@ -107,7 +140,7 @@ def train_regression_from_notebook(headers: List[str], rows: List[List[str]], fe
 
     model = Pipeline([
         ("preprocessor", preprocessor),
-        ("regressor", RandomForestRegressor(n_estimators=300, max_depth=15, min_samples_split=5, random_state=42)),
+        ("regressor", RandomForestRegressor(n_estimators=500, max_depth=20, min_samples_split=5, random_state=42)),
     ])
 
     X_train, X_test, y_train, y_test = train_test_split(X, np.array(y, dtype=float), test_size=test_size, random_state=random_state)
