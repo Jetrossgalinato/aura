@@ -2,6 +2,7 @@ import { ParsedDataset } from "@/types/import";
 import {
   ModelTrainingApiResponse,
   ModelTrainingPreview,
+  TargetBinningStrategy,
 } from "@/types/model-training";
 import { RegressionPreview } from "@/types/model-training";
 
@@ -52,6 +53,7 @@ export async function fetchModelTrainingPreview(
   dataset: ParsedDataset,
   featureIndices: number[],
   targetIndex: number,
+  targetBinningStrategy: TargetBinningStrategy,
   testSize = 0.2,
 ): Promise<ModelTrainingPreview> {
   const response = await fetch(
@@ -69,6 +71,7 @@ export async function fetchModelTrainingPreview(
         },
         feature_indices: featureIndices,
         target_index: targetIndex,
+        target_binning_strategy: targetBinningStrategy,
         test_size: testSize,
       }),
     },
@@ -88,6 +91,7 @@ export async function fetchModelTrainingPreview(
       totalRows: payload.summary.total_rows,
       featureCount: payload.summary.feature_count,
       targetHeader: payload.summary.target_header,
+      targetBinningStrategy: payload.summary.target_binning_strategy,
       testSize: payload.summary.test_size,
       bestModelName: payload.summary.best_model_name,
       bestAccuracy: payload.summary.best_accuracy,

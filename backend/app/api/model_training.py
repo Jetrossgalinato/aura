@@ -16,6 +16,7 @@ def model_training_preview(payload: ModelTrainingRequest):
             rows=payload.dataset.rows,
             feature_indices=payload.feature_indices,
             target_index=payload.target_index,
+            target_binning_strategy=payload.target_binning_strategy,
             test_size=payload.test_size,
             random_state=payload.random_state,
         )

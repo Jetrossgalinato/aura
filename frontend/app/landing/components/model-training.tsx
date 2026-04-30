@@ -33,10 +33,19 @@ import {
 import { fetchModelTrainingPreview } from "@/services/model-training";
 import { DataTableProps } from "@/types/import";
 import { FeatureSelectionState } from "@/types/feature-selection";
-import { ModelTrainingPreview } from "@/types/model-training";
+import {
+  ModelTrainingPreview,
+  TargetBinningStrategy,
+} from "@/types/model-training";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 
 const TEST_SIZE_OPTIONS = [0.2, 0.25, 0.3];
+const TARGET_BINNING_OPTIONS: TargetBinningStrategy[] = [
+  "auto",
+  "median",
+  "tertile",
+  "quartile",
+];
 
 export default function ModelTraining({
   file,
@@ -46,6 +55,8 @@ export default function ModelTraining({
   targetIndex,
 }: DataTableProps & FeatureSelectionState) {
   const [testSize, setTestSize] = useState(0.2);
+  const [targetBinningStrategy, setTargetBinningStrategy] =
+    useState<TargetBinningStrategy>("auto");
   const [preview, setPreview] = useState<ModelTrainingPreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -155,7 +166,13 @@ export default function ModelTraining({
       setPreview(null);
     });
 
-    fetchModelTrainingPreview(dataset, sortedFeatures, targetIndex, testSize)
+    fetchModelTrainingPreview(
+      dataset,
+      sortedFeatures,
+      targetIndex,
+      targetBinningStrategy,
+      testSize,
+    )
       .then((response) => {
         if (isCancelled) {
           return;
@@ -183,7 +200,14 @@ export default function ModelTraining({
     return () => {
       isCancelled = true;
     };
-  }, [dataset, hasDataset, sortedFeatures, targetIndex, testSize]);
+  }, [
+    dataset,
+    hasDataset,
+    sortedFeatures,
+    targetBinningStrategy,
+    targetIndex,
+    testSize,
+  ]);
 
   useEffect(() => {
     if (!isPreviewLoading) {
@@ -270,6 +294,28 @@ export default function ModelTraining({
                 </Button>
               ))}
             </div>
+            {isNumericTarget ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Target Binning
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {TARGET_BINNING_OPTIONS.map((option) => (
+                    <Button
+                      key={option}
+                      type="button"
+                      variant={
+                        targetBinningStrategy === option ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setTargetBinningStrategy(option)}
+                    >
+                      {option}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {isNumericTarget ? (
               <p className="mt-3 text-xs text-muted-foreground">
                 FinalGrade is numeric, so I bin it into Low, Medium, and High
@@ -364,6 +410,12 @@ export default function ModelTraining({
                 <p className="font-semibold">Target</p>
                 <p className="text-muted-foreground">
                   {preview.summary.targetHeader}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold">Binning</p>
+                <p className="text-muted-foreground">
+                  {preview.summary.targetBinningStrategy ?? "N/A"}
                 </p>
               </div>
               <div>

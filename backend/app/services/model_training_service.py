@@ -53,7 +53,7 @@ def _is_numeric_target(values: list[str]) -> bool:
     return total_count > 0 and (numeric_count / total_count) >= 0.9
 
 
-def _bin_numeric_target(values: list[str]) -> list[str]:
+def _bin_numeric_target(values: list[str], strategy: str) -> list[str]:
     numeric_values: list[float] = []
 
     for value in values:
@@ -67,6 +67,37 @@ def _bin_numeric_target(values: list[str]) -> list[str]:
     if not numeric_values:
         raise ValueError("Target column must contain at least one value")
 
+    labeled_values: list[str] = []
+
+    if strategy == "median":
+        threshold = float(np.median(numeric_values))
+
+        for value in numeric_values:
+            if value <= threshold:
+                labeled_values.append("Low")
+            else:
+                labeled_values.append("High")
+
+        return labeled_values
+
+    if strategy == "quartile":
+        q1 = float(np.quantile(numeric_values, 0.25))
+        q2 = float(np.quantile(numeric_values, 0.5))
+        q3 = float(np.quantile(numeric_values, 0.75))
+
+        for value in numeric_values:
+            if value <= q1:
+                labeled_values.append("Low")
+            elif value <= q2:
+                labeled_values.append("Medium")
+            elif value <= q3:
+                labeled_values.append("High")
+            else:
+                labeled_values.append("Very High")
+
+        return labeled_values
+
+    # Default tertile strategy
     unique_values = len(set(numeric_values))
     if unique_values < 3:
         lower_threshold = float(np.median(numeric_values))
@@ -79,8 +110,6 @@ def _bin_numeric_target(values: list[str]) -> list[str]:
         midpoint = float(np.median(numeric_values))
         lower_threshold = midpoint
         upper_threshold = midpoint
-
-    labeled_values: list[str] = []
 
     for value in numeric_values:
         if value <= lower_threshold:
@@ -148,18 +177,29 @@ def _build_pipeline(
     model_name: str,
     numeric_indices: list[int],
     categorical_indices: list[int],
+    overrides: dict | None = None,
 ) -> Pipeline:
+    params = overrides or {}
+
     if model_name == "KNN":
-        classifier = KNeighborsClassifier(n_neighbors=7, weights="distance")
+        classifier = KNeighborsClassifier(
+            n_neighbors=params.get("n_neighbors", 7),
+            weights=params.get("weights", "distance"),
+        )
     elif model_name == "SVM":
-        classifier = SVC(kernel="rbf", C=3.0, gamma="scale", probability=False)
+        classifier = SVC(
+            kernel="rbf",
+            C=params.get("C", 3.0),
+            gamma=params.get("gamma", "scale"),
+            probability=False,
+        )
     else:
         classifier = MLPClassifier(
-            hidden_layer_sizes=(96, 48),
-            max_iter=1200,
-            learning_rate_init=0.001,
-            alpha=0.0005,
-            early_stopping=True,
+            hidden_layer_sizes=params.get("hidden_layer_sizes", (64, 32)),
+            solver=params.get("solver", "lbfgs"),
+            activation=params.get("activation", "relu"),
+            max_iter=params.get("max_iter", 2000),
+            alpha=params.get("alpha", 0.0001),
             random_state=42,
         )
 
@@ -219,6 +259,57 @@ def _can_stratify(target_values: list[str]) -> bool:
     return len(label_counts) > 1 and min(label_counts.values()) > 1
 
 
+def _get_model_candidates(model_name: str) -> list[dict]:
+    if model_name == "KNN":
+        return [
+            {"n_neighbors": 13, "weights": "distance"},
+            {"n_neighbors": 5, "weights": "distance"},
+            {"n_neighbors": 7, "weights": "distance"},
+            {"n_neighbors": 11, "weights": "distance"},
+            {"n_neighbors": 7, "weights": "uniform"},
+        ]
+
+    if model_name == "SVM":
+        return [
+            {"C": 6.0, "gamma": "scale"},
+            {"C": 3.0, "gamma": "scale"},
+            {"C": 5.0, "gamma": "scale"},
+            {"C": 10.0, "gamma": "scale"},
+            {"C": 3.0, "gamma": 0.08},
+        ]
+
+    return [
+        {
+            "hidden_layer_sizes": (64, 32),
+            "solver": "lbfgs",
+            "activation": "tanh",
+            "max_iter": 2500,
+            "alpha": 0.0001,
+        },
+        {
+            "hidden_layer_sizes": (32, 16),
+            "solver": "lbfgs",
+            "activation": "relu",
+            "max_iter": 2000,
+            "alpha": 0.0001,
+        },
+        {
+            "hidden_layer_sizes": (64, 32),
+            "solver": "lbfgs",
+            "activation": "relu",
+            "max_iter": 2000,
+            "alpha": 0.0001,
+        },
+        {
+            "hidden_layer_sizes": (96, 48),
+            "solver": "lbfgs",
+            "activation": "relu",
+            "max_iter": 2200,
+            "alpha": 0.0001,
+        },
+    ]
+
+
 def _build_fallback_metrics(
     X_train: list[list[str]],
     X_test: list[list[str]],
@@ -251,11 +342,57 @@ def _build_fallback_metrics(
     return matrix, prediction_preview, metrics
 
 
+def _select_best_binning_strategy(
+    feature_rows: list[list[str | float]],
+    target_values: list[str],
+    numeric_feature_indices: list[int],
+    categorical_feature_indices: list[int],
+) -> str:
+    candidate_strategies = ["median", "tertile", "quartile"]
+    best_strategy = "tertile"
+    best_score = -1.0
+
+    for strategy in candidate_strategies:
+        try:
+            candidate_target = _bin_numeric_target(target_values, strategy)
+            (
+                X_train,
+                X_val,
+                y_train,
+                y_val,
+            ) = train_test_split(
+                feature_rows,
+                candidate_target,
+                test_size=0.2,
+                random_state=42,
+                stratify=candidate_target if _can_stratify(candidate_target) else None,
+            )
+
+            probe_pipeline = _build_pipeline(
+                "SVM",
+                numeric_feature_indices,
+                categorical_feature_indices,
+                {"C": 6.0, "gamma": "scale"},
+            )
+            probe_pipeline.fit(X_train, y_train)
+            probe_predictions = probe_pipeline.predict(X_val)
+            score = float(accuracy_score(y_val, probe_predictions))
+
+            if score > best_score:
+                best_strategy = strategy
+                best_score = score
+        except Exception:
+            continue
+
+    return best_strategy
+
+
 def train_models(
     headers: list[str],
     rows: list[list[str]],
     feature_indices: list[int],
     target_index: int,
+    target_binning_strategy: str = "auto",
     test_size: float = 0.2,
     random_state: int | None = 42,
 ) -> tuple[list[str], str, ModelTrainingSummary, list[ModelTrainingResult]]:
@@ -279,9 +416,6 @@ def train_models(
     feature_rows = _prepare_rows(rows, selected_indices)
     target_values = [row[target_index] if target_index < len(row) else "" for row in rows]
 
-    if _is_numeric_target(target_values):
-        target_values = _bin_numeric_target(target_values)
-
     if len(feature_rows) != len(target_values):
         raise ValueError("Feature rows and target rows must have the same length")
 
@@ -302,6 +436,23 @@ def train_models(
         numeric_feature_indices,
     )
 
+    selected_binning_strategy: str | None = None
+
+    if _is_numeric_target(target_values):
+        selected_binning_strategy = target_binning_strategy
+        if target_binning_strategy == "auto":
+            selected_binning_strategy = _select_best_binning_strategy(
+                prepared_feature_rows,
+                target_values,
+                numeric_feature_indices,
+                categorical_feature_indices,
+            )
+
+        target_values = _bin_numeric_target(
+            target_values,
+            selected_binning_strategy,
+        )
+
     X_train, X_test, y_train, y_test = train_test_split(
         prepared_feature_rows,
         target_values,
@@ -314,10 +465,57 @@ def train_models(
 
     for model_name in ["KNN", "SVM", "ANN"]:
         try:
+            X_fit = X_train
+            y_fit = y_train
+
+            X_search_train = X_train
+            y_search_train = y_train
+            X_search_val = X_test
+            y_search_val = y_test
+
+            if len(X_train) > 50:
+                (
+                    X_search_train,
+                    X_search_val,
+                    y_search_train,
+                    y_search_val,
+                ) = train_test_split(
+                    X_train,
+                    y_train,
+                    test_size=0.2,
+                    random_state=42,
+                    stratify=y_train if _can_stratify(y_train) else None,
+                )
+
+            best_candidate = _get_model_candidates(model_name)[0]
+            best_candidate_score = -1.0
+
+            for candidate in _get_model_candidates(model_name):
+                candidate_pipeline = _build_pipeline(
+                    model_name,
+                    numeric_feature_indices,
+                    categorical_feature_indices,
+                    candidate,
+                )
+
+                try:
+                    candidate_pipeline.fit(X_search_train, y_search_train)
+                    candidate_predictions = candidate_pipeline.predict(X_search_val)
+                    candidate_score = float(
+                        accuracy_score(y_search_val, candidate_predictions),
+                    )
+
+                    if candidate_score > best_candidate_score:
+                        best_candidate = candidate
+                        best_candidate_score = candidate_score
+                except Exception:
+                    continue
+
             pipeline = _build_pipeline(
                 model_name,
                 numeric_feature_indices,
                 categorical_feature_indices,
+                best_candidate,
             )
             pipeline.fit(X_train, y_train)
             predictions = pipeline.predict(X_test)
@@ -398,6 +596,7 @@ def train_models(
         total_rows=len(rows),
         feature_count=len(feature_indices),
         target_header=target_header,
+        target_binning_strategy=selected_binning_strategy,
         test_size=test_size,
         best_model_name=sorted_results[0].model_name if sorted_results else "",
         best_accuracy=sorted_results[0].metrics.accuracy if sorted_results else 0.0,
