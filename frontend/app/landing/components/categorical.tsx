@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import {
   Card,
   CardContent,
@@ -28,21 +26,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
-import { fetchCategoricalPreview } from "@/services/categorical";
-import { EncodedDataset } from "@/types/categorical";
 import { DataTableProps } from "@/types/import";
+import { useCategoricalEncoding } from "@/hooks/useCategoricalEncoding";
 
 export default function Categorical({
   file,
   dataset,
   isLoading = false,
 }: DataTableProps) {
-  const [page, setPage] = useState(1);
-  const [encodedDataset, setEncodedDataset] = useState<EncodedDataset | null>(
-    null,
-  );
-  const [isEncodingLoading, setIsEncodingLoading] = useState(false);
-  const [encodingError, setEncodingError] = useState("");
+  const { page, setPage, encodedDataset, isEncodingLoading, encodingError } =
+    useCategoricalEncoding({ file, dataset, isLoading });
 
   const sectionHeader = (
     <div className="space-y-1 pb-2">
@@ -52,61 +45,6 @@ export default function Categorical({
       </TypographyMuted>
     </div>
   );
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (
-      isLoading ||
-      !file ||
-      !dataset ||
-      dataset.headers.length === 0 ||
-      dataset.rows.length === 0
-    ) {
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    Promise.resolve().then(() => {
-      if (isCancelled) {
-        return;
-      }
-
-      setIsEncodingLoading(true);
-      setEncodingError("");
-      setEncodedDataset(null);
-    });
-
-    fetchCategoricalPreview(dataset)
-      .then((response) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setEncodedDataset(response);
-        setPage(1);
-      })
-      .catch(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setEncodingError(
-          "Categorical preview is currently unavailable. Start the backend to load encoded rows.",
-        );
-        setEncodedDataset(null);
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsEncodingLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [dataset, file, isLoading]);
 
   if (isLoading) {
     return null;
@@ -217,7 +155,7 @@ export default function Categorical({
                     {column.header}:
                   </span>{" "}
                   {Object.entries(column.mapping)
-                    .map(([value, code]) => `\"${value}\"=${code}`)
+                    .map(([value, code]) => `"${value}"=${code}`)
                     .join(", ")}
                 </p>
               ))}
