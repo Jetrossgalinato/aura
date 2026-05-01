@@ -45,6 +45,15 @@ export type ModelTrainingSummary = {
 
 export type TargetBinningStrategy = "auto" | "median" | "tertile" | "quartile";
 
+export type ModelTrainingMetricProps = {
+  label: string;
+  value: number;
+};
+
+export type ConfusionMatrixProps = {
+  matrix: number[][];
+};
+
 export type ModelTrainingPreview = {
   format: string;
   selectedHeaders: string[];
