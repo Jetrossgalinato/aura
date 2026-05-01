@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Card,
@@ -30,22 +30,21 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { fetchModelTrainingPreview } from "@/services/model-training";
 import { DataTableProps } from "@/types/import";
 import { FeatureSelectionState } from "@/types/feature-selection";
 import {
-  ModelTrainingPreview,
+  ConfusionMatrixProps,
+  ModelTrainingMetricProps,
   TargetBinningStrategy,
 } from "@/types/model-training";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
-
-const TEST_SIZE_OPTIONS = [0.2, 0.25, 0.3];
-const TARGET_BINNING_OPTIONS: TargetBinningStrategy[] = [
-  "auto",
-  "median",
-  "tertile",
-  "quartile",
-];
+import {
+  getConfusionMatrixCellClass,
+  isNumericTargetColumn,
+  TARGET_BINNING_OPTIONS,
+  TEST_SIZE_OPTIONS,
+} from "@/lib/model-training";
+import { useModelTrainingPreview } from "@/hooks/use-model-training-preview";
 
 export default function ModelTraining({
   file,
@@ -57,10 +56,6 @@ export default function ModelTraining({
   const [testSize, setTestSize] = useState(0.2);
   const [targetBinningStrategy, setTargetBinningStrategy] =
     useState<TargetBinningStrategy>("auto");
-  const [preview, setPreview] = useState<ModelTrainingPreview | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [previewError, setPreviewError] = useState("");
   const [page, setPage] = useState(1);
 
   const hasDataset =
@@ -71,33 +66,25 @@ export default function ModelTraining({
     dataset.rows.length > 0;
   const hasSelection = selectedFeatures.length > 0 && targetIndex !== null;
 
-  const isNumericTarget = useMemo(() => {
-    if (!dataset || targetIndex === null) {
-      return false;
-    }
+  const isNumericTarget = useMemo(
+    () => isNumericTargetColumn(dataset, targetIndex),
+    [dataset, targetIndex],
+  );
 
-    const targetValues = dataset.rows
-      .map((row) => row[targetIndex] ?? "")
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
+  const sortedFeatures = useMemo(
+    () => [...selectedFeatures].sort((left, right) => left - right),
+    [selectedFeatures],
+  );
 
-    if (targetValues.length === 0) {
-      return false;
-    }
-
-    let numericCount = 0;
-    const uniqueValues = new Set<string>();
-
-    for (const value of targetValues) {
-      uniqueValues.add(value);
-
-      if (!Number.isNaN(Number(value))) {
-        numericCount += 1;
-      }
-    }
-
-    return numericCount / targetValues.length >= 0.9 && uniqueValues.size > 30;
-  }, [dataset, targetIndex]);
+  const { preview, isPreviewLoading, previewError, displayedLoadingProgress } =
+    useModelTrainingPreview({
+      dataset,
+      hasDataset,
+      sortedFeatures,
+      targetIndex,
+      targetBinningStrategy,
+      testSize,
+    });
 
   const sectionHeader = (
     <div className="space-y-1 pb-2">
@@ -107,135 +94,6 @@ export default function ModelTraining({
       </TypographyMuted>
     </div>
   );
-
-  useEffect(() => {
-    if (!hasDataset) {
-      Promise.resolve().then(() => {
-        setPreview(null);
-        setPage(1);
-      });
-    }
-  }, [hasDataset]);
-
-  const sortedFeatures = useMemo(
-    () => [...selectedFeatures].sort((left, right) => left - right),
-    [selectedFeatures],
-  );
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (!hasDataset || !dataset || targetIndex === null) {
-      Promise.resolve().then(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setPreview(null);
-        setPreviewError("");
-        setPage(1);
-      });
-
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    if (sortedFeatures.length === 0) {
-      Promise.resolve().then(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setPreview(null);
-        setPreviewError("Select at least one feature column to train a model.");
-      });
-
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    Promise.resolve().then(() => {
-      if (isCancelled) {
-        return;
-      }
-
-      setIsPreviewLoading(true);
-      setPreviewError("");
-      setPreview(null);
-    });
-
-    fetchModelTrainingPreview(
-      dataset,
-      sortedFeatures,
-      targetIndex,
-      targetBinningStrategy,
-      testSize,
-    )
-      .then((response) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setPreview(response);
-        setPage(1);
-      })
-      .catch(() => {
-        if (isCancelled) {
-          return;
-        }
-
-        setPreview(null);
-        setPreviewError(
-          "Model training preview is unavailable. Ensure the backend is running.",
-        );
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsPreviewLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    dataset,
-    hasDataset,
-    sortedFeatures,
-    targetBinningStrategy,
-    targetIndex,
-    testSize,
-  ]);
-
-  useEffect(() => {
-    if (!isPreviewLoading) {
-      return;
-    }
-
-    const initialDelayId = window.setTimeout(() => {
-      setLoadingProgress(8);
-    }, 0);
-
-    const intervalId = window.setInterval(() => {
-      setLoadingProgress((current) => {
-        if (current >= 92) {
-          return 92;
-        }
-
-        const nextStep = Math.max(1.5, (100 - current) * 0.12);
-        return Math.min(92, Number((current + nextStep).toFixed(1)));
-      });
-    }, 240);
-
-    return () => {
-      window.clearTimeout(initialDelayId);
-      window.clearInterval(intervalId);
-    };
-  }, [isPreviewLoading]);
-
-  const displayedLoadingProgress = isPreviewLoading ? loadingProgress : 0;
 
   if (!hasDataset || !dataset) {
     return null;
@@ -664,7 +522,7 @@ export default function ModelTraining({
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: ModelTrainingMetricProps) {
   return (
     <div className="rounded-md border p-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -675,7 +533,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
+function ConfusionMatrix({ matrix }: ConfusionMatrixProps) {
   if (!matrix || matrix.length === 0) {
     return (
       <div className="rounded-md border p-2 text-center text-xs text-muted-foreground">
@@ -695,32 +553,6 @@ function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
       }
     }
   }
-
-  const getColorIntensity = (value: number): string => {
-    if (maxValue === 0) {
-      return "bg-muted/60 text-muted-foreground dark:bg-muted/30";
-    }
-
-    const ratio = value / maxValue;
-
-    if (ratio === 0) {
-      return "bg-muted/60 text-muted-foreground dark:bg-muted/30";
-    }
-
-    if (ratio < 0.25) {
-      return "bg-emerald-100 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-50";
-    }
-
-    if (ratio < 0.5) {
-      return "bg-emerald-200 text-emerald-950 dark:bg-emerald-900/55 dark:text-emerald-50";
-    }
-
-    if (ratio < 0.75) {
-      return "bg-emerald-300 text-emerald-950 dark:bg-emerald-800 dark:text-emerald-50";
-    }
-
-    return "bg-emerald-400 text-emerald-950 dark:bg-emerald-600 dark:text-foreground";
-  };
 
   return (
     <div className="space-y-1 rounded-md border p-2">
@@ -744,7 +576,7 @@ function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
           {row.map((value, j) => (
             <div
               key={`cell-${i}-${j}`}
-              className={`flex h-6 w-6 items-center justify-center rounded border border-border/60 text-[10px] font-medium transition-colors ${getColorIntensity(value)}`}
+              className={`flex h-6 w-6 items-center justify-center rounded border border-border/60 text-[10px] font-medium transition-colors ${getConfusionMatrixCellClass(value, maxValue)}`}
               title={`Actual: ${labels[i]}, Predicted: ${labels[j]}, Count: ${value}`}
             >
               {value}
