@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-
 import {
   Card,
   CardContent,
@@ -35,16 +33,14 @@ import { FeatureSelectionState } from "@/types/feature-selection";
 import {
   ConfusionMatrixProps,
   ModelTrainingMetricProps,
-  TargetBinningStrategy,
 } from "@/types/model-training";
 import { CLEANED_PREVIEW_ROWS, getPageItems } from "@/lib/table-pagination";
 import {
   getConfusionMatrixCellClass,
-  isNumericTargetColumn,
   TARGET_BINNING_OPTIONS,
   TEST_SIZE_OPTIONS,
 } from "@/lib/model-training";
-import { useModelTrainingPreview } from "@/hooks/use-model-training-preview";
+import { useModelTraining } from "@/hooks/useModelTraining";
 
 export default function ModelTraining({
   file,
@@ -53,38 +49,27 @@ export default function ModelTraining({
   selectedFeatures,
   targetIndex,
 }: DataTableProps & FeatureSelectionState) {
-  const [testSize, setTestSize] = useState(0.2);
-  const [targetBinningStrategy, setTargetBinningStrategy] =
-    useState<TargetBinningStrategy>("auto");
-  const [page, setPage] = useState(1);
-
-  const hasDataset =
-    !isLoading &&
-    !!file &&
-    !!dataset &&
-    dataset.headers.length > 0 &&
-    dataset.rows.length > 0;
-  const hasSelection = selectedFeatures.length > 0 && targetIndex !== null;
-
-  const isNumericTarget = useMemo(
-    () => isNumericTargetColumn(dataset, targetIndex),
-    [dataset, targetIndex],
-  );
-
-  const sortedFeatures = useMemo(
-    () => [...selectedFeatures].sort((left, right) => left - right),
-    [selectedFeatures],
-  );
-
-  const { preview, isPreviewLoading, previewError, displayedLoadingProgress } =
-    useModelTrainingPreview({
-      dataset,
-      hasDataset,
-      sortedFeatures,
-      targetIndex,
-      targetBinningStrategy,
-      testSize,
-    });
+  const {
+    testSize,
+    setTestSize,
+    targetBinningStrategy,
+    setTargetBinningStrategy,
+    page,
+    setPage,
+    hasDataset,
+    hasSelection,
+    isNumericTarget,
+    preview,
+    isPreviewLoading,
+    previewError,
+    displayedLoadingProgress,
+  } = useModelTraining({
+    file,
+    dataset,
+    isLoading,
+    selectedFeatures,
+    targetIndex,
+  });
 
   const sectionHeader = (
     <div className="space-y-1 pb-2">

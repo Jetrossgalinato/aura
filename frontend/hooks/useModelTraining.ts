@@ -1,16 +1,15 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
-
 import { fetchModelTrainingPreview } from "@/services/model-training";
-import { ParsedDataset } from "@/types/import";
+import { DataTableProps } from "@/types/import";
+import { FeatureSelectionState } from "@/types/feature-selection";
+import { isNumericTargetColumn } from "@/lib/model-training";
 import {
   ModelTrainingPreview,
   TargetBinningStrategy,
 } from "@/types/model-training";
 
 type UseModelTrainingPreviewParams = {
-  dataset: ParsedDataset | null;
+  dataset: DataTableProps["dataset"];
   hasDataset: boolean;
   sortedFeatures: number[];
   targetIndex: number | null;
@@ -173,5 +172,61 @@ export function useModelTrainingPreview({
     isPreviewLoading,
     previewError,
     displayedLoadingProgress,
+  };
+}
+
+// --- NEW HOOK ---
+// Combines the component state with the preview fetching logic
+export function useModelTraining({
+  file,
+  dataset,
+  isLoading = false,
+  selectedFeatures,
+  targetIndex,
+}: DataTableProps & FeatureSelectionState) {
+  const [testSize, setTestSize] = useState(0.2);
+  const [targetBinningStrategy, setTargetBinningStrategy] =
+    useState<TargetBinningStrategy>("auto");
+  const [page, setPage] = useState(1);
+
+  const hasDataset =
+    !isLoading &&
+    !!file &&
+    !!dataset &&
+    dataset.headers.length > 0 &&
+    dataset.rows.length > 0;
+
+  const hasSelection = selectedFeatures.length > 0 && targetIndex !== null;
+
+  const isNumericTarget = useMemo(
+    () => isNumericTargetColumn(dataset, targetIndex),
+    [dataset, targetIndex],
+  );
+
+  const sortedFeatures = useMemo(
+    () => [...selectedFeatures].sort((left, right) => left - right),
+    [selectedFeatures],
+  );
+
+  const previewData = useModelTrainingPreview({
+    dataset,
+    hasDataset,
+    sortedFeatures,
+    targetIndex,
+    targetBinningStrategy,
+    testSize,
+  });
+
+  return {
+    testSize,
+    setTestSize,
+    targetBinningStrategy,
+    setTargetBinningStrategy,
+    page,
+    setPage,
+    hasDataset,
+    hasSelection,
+    isNumericTarget,
+    ...previewData,
   };
 }
